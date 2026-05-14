@@ -1,0 +1,49 @@
+# =============================================================================
+# config-service — common configuration
+# =============================================================================
+# Why profile GROUPS instead of just profiles?
+# -------------------------------------------------------------------------
+# Spring Cloud Config selects its backend by Spring profile name — the
+# `native` profile activates the filesystem repository, `git` activates the
+# Git repository.
+#
+# We want users to think in terms of ENVIRONMENTS (local vs aws), not
+# backends. So we map:
+#     local profile   →  also activates 'native' (filesystem backend)
+#     aws   profile   →  also activates 'git'    (Git backend)
+#
+# Spring Boot 3 forbids setting `spring.profiles.active` from a
+# profile-specific file (it's a hard error). `spring.profiles.group` is
+# the supported mechanism and lives here in the common YAML.
+# =============================================================================
+
+spring:
+  application:
+    name: config-service
+  profiles:
+    default: local
+    group:
+      local:
+        - native     # filesystem backend → application-native.yml
+      aws:
+        - git        # Git backend        → application-git.yml
+
+server:
+  port: 8888
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,refresh
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: PhotoConnect Configuration Server

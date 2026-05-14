@@ -1,0 +1,26 @@
+# =============================================================================
+# config-service — NATIVE backend configuration
+# =============================================================================
+# Auto-activated by the profile-group mapping `local -> native` in
+# application.yml. Spring Cloud Config picks up the `native` profile and
+# wires the NativeEnvironmentRepository, which reads YAML files from the
+# search-locations below.
+#
+# ${user.dir} = JVM working directory. We list two candidate paths so the
+# Config Server works whether you launch from the repo root or from the
+# config-service module directory:
+#
+#   * from repo root  ->  ${user.dir}/config-repo
+#   * from module dir ->  ${user.dir}/../config-repo
+#
+# Missing locations are silently skipped — perfectly fine.
+# =============================================================================
+
+spring:
+  cloud:
+    config:
+      server:
+        native:
+          search-locations:
+            - file:${user.dir}/config-repo
+            - file:${user.dir}/../config-repo

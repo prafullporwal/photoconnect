@@ -1,0 +1,31 @@
+# =============================================================================
+# config-service — GIT backend configuration (Phase 2)
+# =============================================================================
+# Auto-activated by the profile-group mapping `aws -> git` in application.yml.
+# Two complementary backends are typical in production:
+#
+#   1. Git backend (this file) — non-secret YAML config in a version-controlled
+#      repo (audit log + rollback + PR reviews for free).
+#   2. AWS Secrets Manager / Parameter Store — secrets only (DB passwords,
+#      signing keys), pulled by spring-cloud-aws-starter-secrets-manager.
+#
+# Fill these in during the Phase 2 migration; the only client-side change
+# they require is `spring.profiles.active=aws`.
+# =============================================================================
+
+spring:
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_GIT_URI:https://github.com/your-org/photoconnect-config}
+          default-label: main
+          # Private repos: set CONFIG_GIT_USERNAME / CONFIG_GIT_PASSWORD
+          # (deploy-key recommended; PAT acceptable):
+          username: ${CONFIG_GIT_USERNAME:}
+          password: ${CONFIG_GIT_PASSWORD:}
+          clone-on-start: true
+          timeout: 10
+
+# Phase 2: bind /actuator/refresh fleet-wide via Spring Cloud Bus + SQS
+# (deferred — covered when we add event-driven patterns).

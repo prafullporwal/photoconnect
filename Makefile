@@ -7,7 +7,7 @@
 # =============================================================================
 
 .PHONY: help up down restart logs ps clean build test \
-        discovery-run
+        discovery-run config-run
 
 help:
 	@echo "PhotoConnect targets:"
@@ -20,6 +20,7 @@ help:
 	@echo "  make build          - mvn clean install across all modules"
 	@echo "  make test           - run all tests across all modules"
 	@echo "  make discovery-run  - start the Eureka server (port 8761)"
+	@echo "  make config-run     - start the Config Server (port 8888)"
 
 up:
 	docker compose up -d
@@ -55,3 +56,6 @@ test:
 
 discovery-run:
 	mvn -pl discovery-service spring-boot:run
+
+config-run:
+	mvn -pl config-service spring-boot:run

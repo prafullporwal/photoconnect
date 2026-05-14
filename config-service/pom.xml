@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    config-service
+    ==============
+    Spring Cloud Config Server. Reads config from a backend (filesystem
+    locally, Git or Secrets Manager in Phase 2) and serves it over HTTP to
+    every other PhotoConnect service.
+
+    No Eureka client here on purpose — Config Server is a foundation service
+    that clients reach by URL, not by service name. Keeps the bootstrap
+    graph clean.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.photoconnect</groupId>
+        <artifactId>photoconnect-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>config-service</artifactId>
+    <name>config-service</name>
+    <description>Spring Cloud Config Server - centralized configuration for PhotoConnect</description>
+
+    <dependencies>
+        <!-- The Config Server starter (brings in spring-cloud-config-server + web) -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+        </dependency>
+
+        <!-- Actuator: /health (probes), /info, /metrics -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- JSON-structured logging for the aws profile -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,76 @@
+# =============================================================================
+# config-repo/application.yml
+# =============================================================================
+# GLOBAL DEFAULTS — served by config-service to EVERY PhotoConnect client
+# service (api-gateway, auth-service, photographer-service, customer-service).
+#
+# Put cross-cutting config here: actuator, Eureka client basics, graceful
+# shutdown, tracing endpoints. Service-specific overrides go in
+# {service-name}.yml or {service-name}-{profile}.yml in this same folder.
+#
+# Note: this file does NOT apply to discovery-service or config-service
+# themselves — those two are foundation services that boot from their own
+# embedded YAML. Everything else is a Config Server client.
+# =============================================================================
+
+server:
+  # Lets in-flight HTTP requests finish during a SIGTERM (K8s rolling deploy).
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    # Cap on graceful shutdown waiting time. After this, JVM is forcibly killed.
+    timeout-per-shutdown-phase: 30s
+
+# -----------------------------------------------------------------------------
+# Actuator — observability endpoints, plus tracing wiring
+# -----------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        # Exposed deliberately, no more, no less:
+        # - health     : K8s liveness/readiness probes, monitoring uptime
+        # - info       : build/git metadata
+        # - metrics    : runtime metrics (memory, GC, HTTP, JDBC pool, ...)
+        # - prometheus : scrape endpoint when we wire Prometheus in Phase 2
+        # - refresh    : POST to reload @RefreshScope beans without restart
+        # - env        : useful for debugging config resolution (locked-down)
+        include: health,info,metrics,prometheus,refresh,env
+  endpoint:
+    health:
+      probes:
+        enabled: true                  # /actuator/health/liveness, /readiness
+      show-details: when_authorized
+    env:
+      # Don't leak secrets via /actuator/env in production.
+      show-values: never
+  # Distributed tracing — Micrometer → Zipkin.
+  # Services that include `spring-boot-starter-actuator` +
+  # `micrometer-tracing-bridge-brave` + `zipkin-reporter-brave`
+  # will pick this up automatically.
+  tracing:
+    sampling:
+      # 100% sampling in local. In aws we'll drop this to ~0.1 to control cost.
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+# -----------------------------------------------------------------------------
+# Eureka client defaults
+# -----------------------------------------------------------------------------
+# Any service that pulls in spring-cloud-starter-netflix-eureka-client gets
+# these by default. discovery-service & config-service skip these (they don't
+# include the Eureka client starter at all).
+# -----------------------------------------------------------------------------
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true            # Register by IP instead of hostname
+    lease-renewal-interval-in-seconds: 10   # Heartbeat every 10s (default 30)
+    lease-expiration-duration-in-seconds: 30 # Evict after 30s of no heartbeat
