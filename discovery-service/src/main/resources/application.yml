@@ -1,0 +1,70 @@
+# =============================================================================
+# discovery-service — common configuration
+# =============================================================================
+# This file is loaded for EVERY profile. Profile-specific overrides live in
+# application-local.yml and application-aws.yml. The active profile is picked
+# by `spring.profiles.active` or the SPRING_PROFILES_ACTIVE env var.
+# =============================================================================
+
+spring:
+  application:
+    name: discovery-service
+  profiles:
+    # When nothing is set, run as "local". Docker/K8s deployments will override
+    # this with SPRING_PROFILES_ACTIVE=aws.
+    default: local
+
+server:
+  port: 8761
+  # Graceful shutdown gives in-flight requests up to 30s to finish before SIGTERM
+  # kills the process. Lifecycle pattern that matters in K8s rolling deploys.
+  shutdown: graceful
+
+# -----------------------------------------------------------------------------
+# Actuator endpoints
+# -----------------------------------------------------------------------------
+# Expose only what we need. /health is the readiness/liveness probe target.
+# /info is for build metadata. Everything else stays disabled.
+# -----------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true   # /actuator/health/liveness and /readiness
+      show-details: when_authorized
+
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: PhotoConnect Service Registry (Eureka Server)
+
+# -----------------------------------------------------------------------------
+# Eureka server — common settings
+# -----------------------------------------------------------------------------
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    # CRITICAL: a Eureka server should not register with itself, nor fetch a
+    # registry FROM itself, in single-node mode. (When you peer multiple Eureka
+    # nodes you flip both to true and provide service-url for the peers.)
+    register-with-eureka: false
+    fetch-registry: false
+  server:
+    # Self-preservation is a safety net: if Eureka stops receiving heartbeats
+    # from a high % of clients (often a network partition), it KEEPS the
+    # registry rather than evicting everything. Useful in prod, but in local
+    # dev it causes "ghost" entries to linger after you stop a service. So:
+    # turn it OFF locally.
+    enable-self-preservation: false
+    # Sweep stale instances every 5 seconds (default 60s). Faster feedback loop
+    # during development.
+    eviction-interval-timer-in-ms: 5000

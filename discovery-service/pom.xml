@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    discovery-service
+    =================
+    Spring Cloud Netflix Eureka SERVER. Other services register with it
+    on startup, send heartbeats, and look each other up by logical name.
+
+    This module declares the parent POM (no version repetition!) and pulls in
+    just the two starters it needs.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.photoconnect</groupId>
+        <artifactId>photoconnect-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>discovery-service</artifactId>
+    <name>discovery-service</name>
+    <description>Eureka Server - service registry for PhotoConnect</description>
+
+    <dependencies>
+        <!--
+            The Eureka server starter. Versions come from the spring-cloud BOM
+            imported in the parent POM, so no <version> needed here.
+        -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+        </dependency>
+
+        <!--
+            Actuator exposes /actuator/health (and more). The Eureka instance
+            itself uses health for self-monitoring; we also reuse it for
+            container/k8s probes later.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- JSON-structured logs that play nicely with CloudWatch / ELK later. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

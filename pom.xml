@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    PhotoConnect - Parent POM
+    ===========================
+    This is a multi-module Maven project. The parent POM does NOT contain code;
+    it only declares:
+      1. Dependency versions (via <dependencyManagement>) - children inherit these
+         versions WITHOUT having to redeclare them.
+      2. Plugin versions (via <pluginManagement>) - same idea, for plugins.
+      3. The list of child modules (under <modules>).
+
+    BENEFIT: a single place to bump Spring Boot or Spring Cloud, and every service
+    follows. This is one of the most important "platform engineering" decisions
+    in a microservices repo.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.photoconnect</groupId>
+    <artifactId>photoconnect-parent</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>PhotoConnect Parent</name>
+    <description>PhotoConnect microservices marketplace - parent POM</description>
+
+    <!--
+        We inherit from spring-boot-starter-parent. This gives us:
+          - Curated dependency versions for the entire Spring ecosystem
+          - Sensible plugin defaults (compiler, surefire, failsafe, etc.)
+          - The spring-boot-maven-plugin pre-configured
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.0</version>
+        <relativePath/>
+    </parent>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Spring Cloud release train. 2024.0.x is compatible with Spring Boot 3.4.x. -->
+        <spring-cloud.version>2024.0.0</spring-cloud.version>
+
+        <!-- Other shared library versions -->
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+        <springdoc.version>2.7.0</springdoc.version>
+        <logstash-logback.version>8.0</logstash-logback.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <jacoco.version>0.8.12</jacoco.version>
+        <aws-sdk.version>2.29.29</aws-sdk.version>
+    </properties>
+
+    <!--
+        MODULES
+        Each <module> is a sub-directory containing its own pom.xml.
+        We add modules incrementally as we build them. After discovery-service we'll
+        add config-service, api-gateway, auth-service, photographer-service, customer-service.
+    -->
+    <modules>
+        <module>discovery-service</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Cloud BOM - gives all spring-cloud-* artifacts a consistent version -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- AWS SDK BOM (used by photographer-service for S3; works with MinIO locally) -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Testcontainers BOM -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Cross-cutting libraries used by multiple services -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.logstash.logback</groupId>
+                <artifactId>logstash-logback-encoder</artifactId>
+                <version>${logstash-logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                    Configure the compiler to run Lombok + MapStruct annotation
+                    processors in the right order. Children that need them will
+                    inherit this configuration.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok-mapstruct-binding</artifactId>
+                                <version>${lombok-mapstruct-binding.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+
+                <!-- JaCoCo for code coverage; will be wired up per-service -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals><goal>prepare-agent</goal></goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>verify</phase>
+                            <goals><goal>report</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

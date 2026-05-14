@@ -1,0 +1,48 @@
+# Build output
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Node / frontend (later)
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# Docker
+**/data/
+.env
+
+# Local secrets / keys
+**/keys/*.pem
+**/keys/*.key
+!**/keys/.gitkeep
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# Test coverage
+**/jacoco.exec
+**/site/

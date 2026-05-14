@@ -1,0 +1,173 @@
+# =============================================================================
+# PhotoConnect - Local Infrastructure
+# =============================================================================
+# This compose file boots all backing services PhotoConnect needs during local
+# development. Services (Java apps) themselves run on your host JVM during
+# development for fast iteration; we'll add Dockerfiles per service so you
+# can later run them inside compose too.
+#
+# Bring everything up:    docker compose up -d
+# Tear everything down:   docker compose down
+# Wipe volumes too:       docker compose down -v
+#
+# Ports exposed to host:
+#   5432  PostgreSQL (auth_db + photographer_db)
+#   3306  MySQL      (customer_db)
+#   6379  Redis      (token blacklist, rate limiting)
+#   9000  MinIO S3 API
+#   9001  MinIO Web Console
+#   9411  Zipkin UI
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — shared by auth-service and photographer-service.
+  # Each service gets its OWN database (database-per-service pattern) so we
+  # keep schema ownership clean even though they share a Postgres instance.
+  # In Phase 2 you can promote them to separate RDS instances without code changes.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: pc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Comma-separated list parsed by our init script:
+      POSTGRES_MULTIPLE_DATABASES: auth_db,photographer_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pc_postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # MySQL — used by customer-service.
+  # Why a different DB engine? Because in real teams, services pick their own
+  # storage and the platform shouldn't dictate. This also forces us to confirm
+  # that our cross-cutting code (Flyway, JPA dialects) works against multiple
+  # engines from day one.
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    container_name: pc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: customer_db
+      MYSQL_USER: customer_user
+      MYSQL_PASSWORD: customer_pass
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=caching_sha2_password
+    volumes:
+      - pc_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # Redis — JWT refresh-token blacklist + (later) rate limiting at the gateway.
+  # In Phase 2 this becomes AWS ElastiCache (Redis-compatible) with zero code
+  # change — connection string only.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: pc-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - pc_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # MinIO — S3-compatible object storage running locally.
+  # The AWS SDK v2 talks to MinIO over the exact same S3 API; we just point
+  # the endpoint URL at MinIO in the `local` profile and at real S3 in `aws`.
+  # No application code changes between environments.
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: pc-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console at http://localhost:9001
+    volumes:
+      - pc_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [pc-net]
+
+  # One-shot job: creates the bucket(s) our services expect, so a fresh
+  # `docker compose up` is immediately usable.
+  minio-init:
+    image: minio/mc:latest
+    container_name: pc-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/photoconnect-media &&
+      mc anonymous set download local/photoconnect-media &&
+      echo 'MinIO bucket ready: photoconnect-media' &&
+      exit 0
+      "
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # Zipkin — distributed tracing UI.
+  # Spring Boot's Micrometer Tracing will push spans here over HTTP.
+  # Open http://localhost:9411 to follow a request across services by traceId.
+  # ---------------------------------------------------------------------------
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: pc-zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:9411/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [pc-net]
+
+# Named volumes survive `docker compose down`. Use `down -v` to wipe them.
+volumes:
+  pc_postgres_data:
+  pc_mysql_data:
+  pc_redis_data:
+  pc_minio_data:
+
+networks:
+  pc-net:
+    driver: bridge
+    name: pc-net

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    logback-spring.xml
+    ==================
+    Two appenders:
+      * CONSOLE_PLAIN — human-readable, used in the `local` profile so you can
+        actually read what's happening in your terminal.
+      * CONSOLE_JSON  — single-line JSON with logstash encoder, used in the
+        `aws` profile. CloudWatch Logs / ELK will ingest this directly with
+        zero parsing rules.
+
+    The springProfile element is the Spring Boot extension that lets us swap
+    appenders by active profile — no application-code branching required.
+-->
+<configuration>
+    <property name="SERVICE_NAME" value="${spring.application.name:-discovery-service}"/>
+
+    <appender name="CONSOLE_PLAIN" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [${SERVICE_NAME}] [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>correlationId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_PLAIN"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="aws">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+
+    <!-- Fallback for the "no profile" case (e.g. running tests) -->
+    <springProfile name="!local &amp; !aws">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_PLAIN"/>
+        </root>
+    </springProfile>
+</configuration>
