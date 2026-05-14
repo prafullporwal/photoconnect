@@ -1,0 +1,39 @@
+# =============================================================================
+# api-gateway — embedded bootstrap config (minimal on purpose)
+# =============================================================================
+# Most settings (routes, CORS, port, swagger URLs, eureka URL, tracing
+# endpoint) come from CONFIG-SERVICE. This file only has what's needed to
+# REACH the config server — name, profile default, import directive.
+# =============================================================================
+
+spring:
+  application:
+    name: api-gateway
+
+  profiles:
+    default: local
+
+  # Spring Boot 2.4+ way of bootstrapping from Config Server (replaces
+  # legacy bootstrap.yml). 'optional:' means: if config-service is down,
+  # keep booting with whatever local YAML we have. Production (aws profile)
+  # overrides this to fail-fast.
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  cloud:
+    config:
+      # Send our active profile to Config Server so it resolves the right files
+      # (api-gateway.yml + api-gateway-local.yml).
+      profile: ${spring.profiles.active:local}
+      # The Config client retries on transient failures during startup.
+      fail-fast: false
+      retry:
+        max-attempts: 6
+        initial-interval: 1000
+        max-interval: 2000
+        multiplier: 1.1
+
+# Default port if config-server isn't reachable and api-gateway.yml isn't
+# served. (Config Server's api-gateway.yml will override this to 8080.)
+server:
+  port: 8080

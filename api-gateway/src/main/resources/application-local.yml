@@ -1,0 +1,15 @@
+# =============================================================================
+# api-gateway — LOCAL profile
+# =============================================================================
+# This file is intentionally tiny — local-only tweaks go here. The full
+# routing + CORS + actuator config arrives from config-service.
+# =============================================================================
+
+logging:
+  level:
+    root: INFO
+    com.photoconnect: DEBUG
+    org.springframework.cloud.gateway: INFO
+    # Crank these up to TRACE when debugging a routing miss:
+    # org.springframework.cloud.gateway.handler: TRACE
+    # org.springframework.cloud.gateway.filter: TRACE

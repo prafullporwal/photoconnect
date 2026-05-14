@@ -7,7 +7,7 @@
 # =============================================================================
 
 .PHONY: help up down restart logs ps clean build test \
-        discovery-run config-run
+        discovery-run config-run gateway-run
 
 help:
 	@echo "PhotoConnect targets:"
@@ -21,6 +21,7 @@ help:
 	@echo "  make test           - run all tests across all modules"
 	@echo "  make discovery-run  - start the Eureka server (port 8761)"
 	@echo "  make config-run     - start the Config Server (port 8888)"
+	@echo "  make gateway-run    - start the API Gateway (port 8080)"
 
 up:
 	docker compose up -d
@@ -59,3 +60,6 @@ discovery-run:
 
 config-run:
 	mvn -pl config-service spring-boot:run
+
+gateway-run:
+	mvn -pl api-gateway spring-boot:run

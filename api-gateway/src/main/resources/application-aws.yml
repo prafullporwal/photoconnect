@@ -1,0 +1,20 @@
+# =============================================================================
+# api-gateway — AWS profile (Phase 2)
+# =============================================================================
+# In production we want loud failure on missing config — drop the 'optional:'
+# prefix so a misconfigured deploy fails the readiness probe instead of
+# silently running on stale defaults.
+# =============================================================================
+
+spring:
+  config:
+    # NB: same property as application.yml but without 'optional:'
+    import: "configserver:${CONFIG_SERVER_URI:http://config-service:8888}"
+  cloud:
+    config:
+      fail-fast: true
+
+logging:
+  level:
+    root: WARN
+    com.photoconnect: INFO
