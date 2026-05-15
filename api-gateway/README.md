@@ -6,7 +6,7 @@ Single entry point for all PhotoConnect API traffic. Reactive (Netty + WebFlux).
 
 | Concern | Done at the gateway |
 |---|---|
-| Routing | predicates + filters in `config-repo/api-gateway.yml` |
+| Routing | predicates + filters in `config-repo/api-gateway.properties` |
 | Service discovery | `lb://AUTH-SERVICE` → Spring Cloud LoadBalancer + Eureka |
 | Correlation IDs | `CorrelationIdFilter` (generate-or-propagate `X-Correlation-Id`) |
 | CORS | `spring.cloud.gateway.globalcors` — single source of truth |

@@ -7,7 +7,7 @@
 
 param(
     [Parameter(Position=0)]
-    [ValidateSet('help','up','down','down-clean','restart','logs','ps','build','test','discovery-run','config-run','gateway-run')]
+    [ValidateSet('help','up','down','down-clean','restart','logs','ps','build','test','discovery-run','config-run','gateway-run','auth-run','auth-keys')]
     [string]$Command = 'help'
 )
 
@@ -61,6 +61,8 @@ switch ($Command) {
         Write-Host "  .\pc.ps1 discovery-run  Start the Eureka server (port 8761)"
         Write-Host "  .\pc.ps1 config-run     Start the Config Server (port 8888)"
         Write-Host "  .\pc.ps1 gateway-run    Start the API Gateway (port 8080)"
+        Write-Host "  .\pc.ps1 auth-run       Start auth-service (port 8081, needs Postgres+Redis)"
+        Write-Host "  .\pc.ps1 auth-keys      Generate RSA key pair used by auth-service"
     }
     'up' {
         Assert-Docker
@@ -84,4 +86,6 @@ switch ($Command) {
     'discovery-run' { mvn -pl discovery-service spring-boot:run }
     'config-run'    { mvn -pl config-service spring-boot:run }
     'gateway-run'   { mvn -pl api-gateway spring-boot:run }
+    'auth-run'      { mvn -pl auth-service spring-boot:run }
+    'auth-keys'     { & "$PSScriptRoot\auth-service\scripts\generate-keys.ps1" }
 }

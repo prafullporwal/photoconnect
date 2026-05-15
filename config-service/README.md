@@ -7,7 +7,7 @@ Centralized configuration for every PhotoConnect client service. Reads YAML file
 | Responsibility | Detail |
 |---|---|
 | Resolve config per client | `GET /{application}/{profile}` returns the merged config for a service |
-| Serve raw YAML | `GET /{application}-{profile}.yml` returns YAML directly |
+| Serve rendered config | `GET /{application}-{profile}.properties` returns properties; `.yml` and `.json` views also work |
 | Source of truth | All env-specific values for all services live in `config-repo/` |
 | Hot reload | Clients hit `POST /actuator/refresh` to re-bind `@RefreshScope` beans |
 
@@ -16,8 +16,8 @@ Centralized configuration for every PhotoConnect client service. Reads YAML file
 | URL | Returns |
 |---|---|
 | `GET http://localhost:8888/{app}/{profile}[/label]` | JSON view of resolved property sources for that app + profile |
-| `GET http://localhost:8888/{app}-{profile}.yml` | raw merged YAML for that app + profile |
-| `GET http://localhost:8888/{app}-{profile}.properties` | same as .properties format |
+| `GET http://localhost:8888/{app}-{profile}.properties` | raw merged config rendered as .properties |
+| `GET http://localhost:8888/{app}-{profile}.yml` | same content rendered as YAML (source format is independent of view format) |
 | `GET http://localhost:8888/actuator/health` | health |
 | `GET http://localhost:8888/actuator/info` | build info |
 
@@ -39,15 +39,16 @@ mvn -pl config-service spring-boot:run
 curl http://localhost:8888/actuator/health
 # → {"status":"UP"}
 
-# 2. Fetch the global defaults (config-repo/application.yml)
+# 2. Fetch the global defaults (config-repo/application.properties)
 curl http://localhost:8888/application/default | jq .
-# → JSON with "propertySources" containing your application.yml entries
+# → JSON with "propertySources" containing your application.properties entries
 
-# 3. Same content but as raw YAML
-curl http://localhost:8888/application-default.yml
+# 3. Same content but rendered as raw .properties
+curl http://localhost:8888/application-default.properties
 
 # 4. Fetch what auth-service would receive in the local profile (will only
-#    show the global application.yml until we add auth-service.yml in Step 4)
+#    show the global application.properties until we add
+#    auth-service.properties in Step 4)
 curl http://localhost:8888/auth-service/local
 ```
 
@@ -59,31 +60,25 @@ mvn -pl config-service test
 
 Two test methods:
 - `contextLoads()` — auto-config smoke test
-- `servesApplicationDefaults()` — actually hits the Config Server's REST API and asserts it returns the shared `application.yml`. Catches backend-misconfiguration bugs (wrong path, missing file).
+- `servesApplicationDefaults()` — actually hits the Config Server's REST API and asserts it returns the shared `application.properties`. Catches backend-misconfiguration bugs (wrong path, missing file).
 
 ## How clients will plug in (preview of Step 3+)
 
-```yaml
-# Inside any future service's application.yml:
-spring:
-  application:
-    name: api-gateway          # ← what Config Server uses to resolve files
-  config:
-    import: "optional:configserver:http://localhost:8888"
+```properties
+# Inside any future service's application.properties:
+# (spring.application.name = what Config Server uses to resolve files)
+spring.application.name=api-gateway
+spring.config.import=optional:configserver:http://localhost:8888
 
-# In application-local.yml the client tells Config Server which profile
-# to resolve for it:
-spring:
-  cloud:
-    config:
-      profile: local
+# The client tells Config Server which profile to resolve:
+spring.cloud.config.profile=${spring.profiles.active:local}
 ```
 
 The `optional:` prefix means "if Config Server isn't reachable, keep booting from local YAML." Drop the prefix in `aws` profile if you want fail-fast behavior in production.
 
 ## Phase 2 checklist
 
-1. Switch `application-aws.yml` to the git backend (URL + creds).
+1. Switch `application-git.properties` to point at the real git repo (URL + creds).
 2. Add `spring-cloud-aws-starter-secrets-manager` for secret resolution.
 3. Front the Config Server with HTTP basic auth or internal ALB + IAM.
 4. Add `spring-cloud-bus-amqp` (or SQS) so a single `/actuator/busrefresh` cascades to every instance.

@@ -64,17 +64,17 @@ The included `DiscoveryServiceApplicationTests.contextLoads()` is a smoke test �
 
 | Property | Where | Why |
 |---|---|---|
-| `eureka.client.register-with-eureka=false` | application.yml | Single-node server should not register with itself |
-| `eureka.client.fetch-registry=false` | application.yml | Same — no peer to pull from |
+| `eureka.client.register-with-eureka=false` | application.properties | Single-node server should not register with itself |
+| `eureka.client.fetch-registry=false` | application.properties | Same — no peer to pull from |
 | `eureka.server.enable-self-preservation=false` | local profile | Local dev wants stale instances evicted fast; prod wants the safety net |
-| `eureka.server.eviction-interval-timer-in-ms=5000` | application.yml | Faster eviction sweep during dev |
-| `server.shutdown=graceful` | application.yml | Lets in-flight requests finish during SIGTERM (matters in K8s) |
+| `eureka.server.eviction-interval-timer-in-ms=5000` | application.properties | Faster eviction sweep during dev |
+| `server.shutdown=graceful` | application.properties | Lets in-flight requests finish during SIGTERM (matters in K8s) |
 
 ## Phase 2 (AWS / EKS) checklist
 
 When we migrate:
 
 1. Run 2–3 replicas in different AZs; configure peer URLs so they share state.
-2. Enable self-preservation (`application-aws.yml`).
+2. Enable self-preservation (`application-aws.properties`).
 3. Decide whether to keep Eureka or switch to K8s native discovery — likely keep for portability, but K8s `Service` DNS becomes an option.
 4. Place behind a private ALB; never expose to the internet.

@@ -7,7 +7,7 @@
 # =============================================================================
 
 .PHONY: help up down restart logs ps clean build test \
-        discovery-run config-run gateway-run
+        discovery-run config-run gateway-run auth-run auth-keys
 
 help:
 	@echo "PhotoConnect targets:"
@@ -22,6 +22,8 @@ help:
 	@echo "  make discovery-run  - start the Eureka server (port 8761)"
 	@echo "  make config-run     - start the Config Server (port 8888)"
 	@echo "  make gateway-run    - start the API Gateway (port 8080)"
+	@echo "  make auth-run       - start auth-service (port 8081, needs Postgres+Redis)"
+	@echo "  make auth-keys      - generate the RSA key pair used by auth-service"
 
 up:
 	docker compose up -d
@@ -63,3 +65,9 @@ config-run:
 
 gateway-run:
 	mvn -pl api-gateway spring-boot:run
+
+auth-run:
+	mvn -pl auth-service spring-boot:run
+
+auth-keys:
+	bash auth-service/scripts/generate-keys.sh
