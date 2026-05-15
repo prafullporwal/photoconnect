@@ -68,7 +68,9 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --default-authentication-plugin=caching_sha2_password
+      # MySQL 8.4 removed --default-authentication-plugin; caching_sha2_password
+      # is now the default anyway. To pin it explicitly use --authentication-policy.
+      - --authentication-policy=caching_sha2_password
     volumes:
       - pc_mysql_data:/var/lib/mysql
     healthcheck:

@@ -104,16 +104,19 @@ public class JwtValidationFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getRawPath();
-
-        // ── Public paths bypass JWT validation entirely ───────────────────────
-        // (auth endpoints, actuator probes, Swagger — configured in gateway.jwt.public-paths)
-        if (isPublicPath(path)) {
-            return chain.filter(exchange);
-        }
-
-        // ── Extract bearer token from Authorization header ────────────────────
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+        boolean hasBearer = authHeader != null && authHeader.startsWith(BEARER_PREFIX);
+        boolean publicPath = isPublicPath(path);
+
+        // ── No token: allowed only on public paths ────────────────────────────
+        // A "public path" means *anonymous access is permitted*, not that tokens
+        // get skipped. If a token IS present we still validate it below — that's
+        // how marketplace browse (anonymous) and /me (authenticated) can share
+        // a URL prefix without making the gateway leak identity headers.
+        if (!hasBearer) {
+            if (publicPath) {
+                return chain.filter(exchange);
+            }
             log.debug("Rejected request to {}: missing or malformed Authorization header", path);
             return unauthorized(exchange, "Missing or invalid Authorization header");
         }
