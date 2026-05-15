@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn compile *)",
+      "Bash(findstr /C:\"BUILD\")",
+      "Bash(findstr \"BUILD\")",
+      "Bash(mvn clean *)"
+    ]
+  }
+}

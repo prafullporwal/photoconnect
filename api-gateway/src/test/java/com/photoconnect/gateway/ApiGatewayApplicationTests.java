@@ -1,15 +1,23 @@
 package com.photoconnect.gateway;
 
+import com.photoconnect.gateway.testutil.TestPublicKey;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Smoke test for the gateway's Spring context.
  *
- * <p>We disable Config Server and Eureka in this test so the context can boot
- * standalone — the test isn't trying to verify those integrations, only that
- * the gateway's own beans (routes, filters, etc.) wire up correctly.</p>
+ * <p>We disable Config Server and Eureka so the context can boot standalone —
+ * this test verifies that the gateway's own beans (routes, filters, JWT config)
+ * wire up correctly without any external infrastructure.</p>
+ *
+ * <p>{@link DynamicPropertySource} points {@code gateway.jwt.public-key-path}
+ * at a temp file containing a freshly generated RSA-2048 public key. This
+ * avoids the context failing because the real auth-service key doesn't exist
+ * in the test classpath.</p>
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -28,6 +36,17 @@ import org.springframework.test.context.ActiveProfiles;
         })
 @ActiveProfiles("local")
 class ApiGatewayApplicationTests {
+
+    /**
+     * Provide a generated test public key before the Spring context starts.
+     * GatewaySecurityConfig calls PemKeyLoader with this path to create the
+     * RSAPublicKey bean — so the context boots without needing the real key file.
+     */
+    @DynamicPropertySource
+    static void overrideJwtPublicKeyPath(DynamicPropertyRegistry registry) {
+        registry.add("gateway.jwt.public-key-path",
+                () -> TestPublicKey.publicKeyPath().toString());
+    }
 
     @Test
     void contextLoads() {
