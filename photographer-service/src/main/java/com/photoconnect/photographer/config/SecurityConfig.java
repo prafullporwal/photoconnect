@@ -45,10 +45,15 @@ public class SecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public: browse the marketplace without logging in
+                        // Public-at-HTTP-layer: anonymous + CUSTOMER can browse.
+                        // The actual photographer-blocking lives on the controller methods
+                        // via @PreAuthorize("!hasRole('PHOTOGRAPHER')"). The HTTP layer
+                        // just needs to LET the request reach the controller first.
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/photographers",
-                                "/api/v1/photographers/{id}").permitAll()
+                                "/api/v1/photographers/feed",
+                                "/api/v1/photographers/{id}",
+                                "/api/v1/photographers/{id}/portfolio").permitAll()
                         // Observability + docs
                         .requestMatchers(
                                 "/actuator/health/**",

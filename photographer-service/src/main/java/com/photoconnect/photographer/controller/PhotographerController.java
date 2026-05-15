@@ -47,22 +47,26 @@ public class PhotographerController {
 
     private final PhotographerService service;
 
-    // ── Public endpoints ──────────────────────────────────────────────────────
+    // ── Browse endpoints (anonymous + CUSTOMER only — photographers blocked) ──
+    //
+    // `!hasRole('PHOTOGRAPHER')` evaluates true for:
+    //   - anonymous users (no auth, no role)
+    //   - users with ROLE_CUSTOMER
+    // and false for users with ROLE_PHOTOGRAPHER → 403.
+    //
+    // Photographers shouldn't snoop on competitors via the public marketplace;
+    // they get their own dashboard in the SPA.
 
-    /**
-     * Browse all photographers currently available for bookings.
-     * No authentication required — this is the marketplace discovery page.
-     */
+    /** Browse photographers available for bookings. Hidden from logged-in photographers. */
     @GetMapping
+    @PreAuthorize("!hasRole('PHOTOGRAPHER')")
     public ResponseEntity<List<PhotographerProfileResponse>> listPhotographers() {
         return ResponseEntity.ok(service.listAvailableProfiles());
     }
 
-    /**
-     * View a specific photographer's public profile.
-     * No authentication required.
-     */
+    /** View a specific photographer's profile. Hidden from logged-in photographers. */
     @GetMapping("/{id}")
+    @PreAuthorize("!hasRole('PHOTOGRAPHER')")
     public ResponseEntity<PhotographerProfileResponse> getPhotographer(@PathVariable UUID id) {
         return ResponseEntity.ok(service.getProfileById(id));
     }

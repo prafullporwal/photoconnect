@@ -93,6 +93,18 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
+        <!--
+            ===== Object storage (MinIO locally, S3 in Phase 2) =====
+            We use AWS SDK v2's S3Client because MinIO speaks the S3 API.
+            Same client class, same code, different endpoint + credentials -
+            the swap from MinIO to real S3 is a properties change, not a code change.
+            Version managed by the AWS SDK BOM in the parent pom.
+        -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
         <!-- ===== Dev quality-of-life ===== -->
         <dependency>
             <groupId>org.projectlombok</groupId>
