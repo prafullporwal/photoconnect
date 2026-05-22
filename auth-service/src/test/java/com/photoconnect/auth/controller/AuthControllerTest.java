@@ -1,7 +1,6 @@
 package com.photoconnect.auth.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.photoconnect.auth.config.OtpProperties;
 import com.photoconnect.auth.domain.Role;
 import com.photoconnect.auth.dto.AuthResponse;
 import com.photoconnect.auth.dto.LoginRequest;
@@ -28,10 +27,10 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -61,7 +60,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {JwtAuthenticationFilter.class, CorrelationIdServletFilter.class}))
-@Import({GlobalExceptionHandler.class, AuthControllerTest.OtpPropsConfig.class})
+@Import(GlobalExceptionHandler.class)
+// AuthServiceApplication's @EnableConfigurationProperties(OtpProperties.class)
+// runs in the slice context, so app.otp.* must satisfy @Validated on OtpProperties.
+@TestPropertySource(properties = {
+        "app.otp.provider=DEV",
+        "app.otp.dev-mode=true",
+        "app.otp.length=6",
+        "app.otp.ttl=PT5M",
+        "app.otp.resend-cooldown=PT30S",
+        "app.otp.max-attempts=5"
+})
 class AuthControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -72,16 +81,6 @@ class AuthControllerTest {
     @MockitoBean UserRepository userRepository;
     @MockitoBean UserMapper userMapper;
     @MockitoBean OtpService otpService;
-
-    // Constants in the slice context; controller reads only OtpProperties.devMode()
-    @org.springframework.boot.test.context.TestConfiguration
-    static class OtpPropsConfig {
-        @org.springframework.context.annotation.Bean
-        OtpProperties otpProperties() {
-            return new OtpProperties(
-                    OtpProperties.Provider.DEV, true, 6, Duration.ofMinutes(5), Duration.ofSeconds(30), 5);
-        }
-    }
 
     @Test
     void register_returns201AndTokens() throws Exception {
