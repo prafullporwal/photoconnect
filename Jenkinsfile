@@ -161,6 +161,15 @@ Stop:         docker compose -p photoconnect --profile apps down
 
     post {
         always {
+            // Maven runs in this agent as root (see args '-u root:root') but the
+            // Jenkins controller runs as jenkins (UID 1000). Without this chown,
+            // the controller can't chmod or delete root-owned files on the next
+            // build's checkout — it fails with "Operation not permitted" and
+            // aborts the whole build before any stage runs. Chowning ensures the
+            // workspace (including the auth-service/keys we deliberately keep
+            // via the EXCLUDE below) is cleanable by UID 1000 next time around.
+            sh 'chown -R 1000:1000 . 2>/dev/null || true'
+
             // JUnit picks up BOTH unit (surefire) and integration (failsafe) XML.
             // allowEmptyResults so a pure-compile failure doesn't compound by
             // also failing here with "no test reports found".
