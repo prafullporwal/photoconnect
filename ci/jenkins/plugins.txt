@@ -13,6 +13,7 @@ pipeline-stage-view        # the per-stage timeline on the build page
 
 # --- SCM ---
 git                        # git checkout step
+github-branch-source       # GitHub-aware multibranch source (PR builds, API discovery)
 
 # --- Docker-based build agents ---
 docker-workflow            # provides `agent { docker { image '...' } }`

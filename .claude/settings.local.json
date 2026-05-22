@@ -121,7 +121,12 @@
       "Bash(curl -sS -u admin:admin 'http://localhost:8090/job/photoconnect/job/master/1/consoleText')",
       "Bash(MSYS_NO_PATHCONV=1 docker exec photoconnect-jenkins ls -la /var/run/docker.sock)",
       "Bash(MSYS_NO_PATHCONV=1 docker exec photoconnect-jenkins id jenkins)",
-      "Bash(MSYS_NO_PATHCONV=1 docker exec -u jenkins photoconnect-jenkins docker ps --format '{{.Names}}')"
+      "Bash(MSYS_NO_PATHCONV=1 docker exec -u jenkins photoconnect-jenkins docker ps --format '{{.Names}}')",
+      "Bash(git ls-remote *)",
+      "Bash(git remote *)",
+      "Bash(gh repo *)",
+      "Bash(gh auth *)",
+      "Bash(mvn -B test -Dtest=AuthControllerTest -ntp)"
     ]
   }
 }

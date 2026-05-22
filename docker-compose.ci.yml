@@ -37,6 +37,12 @@ services:
       # JCasC reads its config from this path. The Dockerfile copies casc.yaml
       # to /usr/share/jenkins/ref/ at image build time.
       CASC_JENKINS_CONFIG: /usr/share/jenkins/ref/casc.yaml
+      # GitHub credentials for JCasC ${...} interpolation. Values come from
+      # .env at the repo root (gitignored). Defaults to empty so compose
+      # doesn't fail if .env is missing — Jenkins just falls back to
+      # anonymous API access (60 req/hour).
+      GITHUB_USERNAME: ${GITHUB_USERNAME:-}
+      GITHUB_PAT: ${GITHUB_PAT:-}
     # Add the jenkins user (uid 1000) to supplementary group 0 (root group)
     # so it can read/write /var/run/docker.sock, which is owned root:root mode
     # 660. Without this, `docker` commands inside the controller fail with

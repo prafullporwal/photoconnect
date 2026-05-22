@@ -1,14 +1,15 @@
 # =============================================================================
-# PhotoConnect - Local Infrastructure
+# PhotoConnect - Local Infrastructure (+ optional Java apps)
 # =============================================================================
-# This compose file boots all backing services PhotoConnect needs during local
-# development. Services (Java apps) themselves run on your host JVM during
-# development for fast iteration; we'll add Dockerfiles per service so you
-# can later run them inside compose too.
+# Default `docker compose up -d` brings up ONLY the infra services (Postgres,
+# MySQL, Redis, MinIO, Zipkin) — same as before. Java apps stay in your IDE.
 #
-# Bring everything up:    docker compose up -d
-# Tear everything down:   docker compose down
-# Wipe volumes too:       docker compose down -v
+# To also start the Java app services (used by Jenkins CD and for full-stack
+# local smoke tests), add --profile apps:
+#   docker compose --profile apps up -d --build
+#
+# Tear everything down:   docker compose --profile apps down
+# Wipe volumes too:       docker compose --profile apps down -v
 #
 # Ports exposed to host:
 #   5432  PostgreSQL (auth_db + photographer_db)
@@ -17,6 +18,10 @@
 #   9000  MinIO S3 API
 #   9001  MinIO Web Console
 #   9411  Zipkin UI
+#   8080  api-gateway        (profile: apps)
+#   8081  auth-service       (profile: apps)
+#   8761  discovery-service  (profile: apps)
+#   8888  config-service     (profile: apps)
 # =============================================================================
 
 services:
@@ -160,6 +165,148 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [pc-net]
+
+  # ===========================================================================
+  # JAVA APP SERVICES — profile: apps
+  # ===========================================================================
+  # All four are gated behind `--profile apps` so the default
+  # `docker compose up -d` keeps the lightweight infra-only flow used during
+  # local dev. Jenkins's Deploy stage opts in with --profile apps.
+  #
+  # Boot order is enforced by depends_on with `condition: service_healthy`:
+  #   discovery-service ─┐
+  #   config-service ────┼─► auth-service ──► api-gateway
+  #   postgres, redis ───┘
+  #
+  # Each Dockerfile builds from the repo root (context: .) and references
+  # its module's pom.xml + sources. The Maven build runs inside the image,
+  # so the host doesn't need Maven — only Docker.
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # discovery-service — Eureka registry. Foundation service: no Spring deps.
+  # ---------------------------------------------------------------------------
+  discovery-service:
+    profiles: [apps]
+    image: photoconnect/discovery-service:dev
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
+    container_name: pc-discovery-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # config-service — Spring Cloud Config Server (native filesystem backend).
+  # Mounts the repo-root config-repo/ folder read-only so served properties
+  # always match what's checked in.
+  # ---------------------------------------------------------------------------
+  config-service:
+    profiles: [apps]
+    image: photoconnect/config-service:dev
+    build:
+      context: .
+      dockerfile: config-service/Dockerfile
+    container_name: pc-config-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+    volumes:
+      - ./config-repo:/app/config-repo:ro
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # auth-service — issues JWTs, manages user accounts. Reads upstream config
+  # from config-service and registers itself with discovery-service. The host
+  # overrides (SPRING_DATASOURCE_URL, EUREKA_..., etc.) swap localhost for the
+  # compose-internal DNS names because config-repo defaults assume localhost.
+  # ---------------------------------------------------------------------------
+  auth-service:
+    profiles: [apps]
+    image: photoconnect/auth-service:dev
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: pc-auth-service
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+      config-service: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-service:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATA_REDIS_HOST: redis
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      AUTH_PRIVATE_KEY_PATH: /app/keys/private_key.pem
+      AUTH_PUBLIC_KEY_PATH: /app/keys/public_key.pem
+    volumes:
+      - ./auth-service/keys:/app/keys:ro
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+    networks: [pc-net]
+
+  # ---------------------------------------------------------------------------
+  # api-gateway — edge service, validates JWTs (needs auth-service's public
+  # key on disk) and routes to backend services via Eureka load-balancing.
+  # Shares the keys volume with auth-service so both read the same key file.
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    profiles: [apps]
+    image: photoconnect/api-gateway:dev
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: pc-api-gateway
+    restart: unless-stopped
+    depends_on:
+      discovery-service: { condition: service_healthy }
+      config-service: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-service:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      AUTH_PUBLIC_KEY_PATH: /app/keys/public_key.pem
+    volumes:
+      - ./auth-service/keys:/app/keys:ro
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
     networks: [pc-net]
 
 # Named volumes survive `docker compose down`. Use `down -v` to wipe them.
