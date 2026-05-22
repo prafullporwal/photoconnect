@@ -88,16 +88,23 @@ pipeline {
                 echo 'Step 1/3 — installing docker CLI + compose plugin into the agent...'
                 sh '''
                     if ! command -v docker >/dev/null 2>&1; then
+                        # The maven:3.9-eclipse-temurin-21 image is Ubuntu-based,
+                        # but switching to a Debian-based JDK image later would
+                        # also work. Read the distro id from /etc/os-release so
+                        # we point at the right Docker apt repo either way.
+                        . /etc/os-release
+                        DISTRO_ID="${ID}"            # "ubuntu" or "debian"
+                        CODENAME="${VERSION_CODENAME}"
+                        ARCH=$(dpkg --print-architecture)
+
                         apt-get update -qq
                         apt-get install -qq -y --no-install-recommends \\
                             ca-certificates curl gnupg
                         install -m 0755 -d /etc/apt/keyrings
-                        curl -fsSL https://download.docker.com/linux/debian/gpg \\
+                        curl -fsSL "https://download.docker.com/linux/${DISTRO_ID}/gpg" \\
                             | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
                         chmod a+r /etc/apt/keyrings/docker.gpg
-                        CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
-                        ARCH=$(dpkg --print-architecture)
-                        echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian ${CODENAME} stable" \\
+                        echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DISTRO_ID} ${CODENAME} stable" \\
                             > /etc/apt/sources.list.d/docker.list
                         apt-get update -qq
                         apt-get install -qq -y --no-install-recommends \\
@@ -174,7 +181,12 @@ Stop:         docker compose -p photoconnect --profile apps down
             // after the build ends. Recreating a container with a missing
             // mount source would fail. Keys are tiny and overwritten every
             // deploy anyway.
-            cleanWs(patterns: [[pattern: 'auth-service/keys/**', type: 'EXCLUDE']])
+            // notFailBuild: occasionally a built JAR is still in the kernel's
+            // file cache when cleanWs runs and a single file's delete fails.
+            // Don't flip the build red over that — the next build's checkout
+            // overwrites the workspace anyway.
+            cleanWs(notFailBuild: true,
+                    patterns: [[pattern: 'auth-service/keys/**', type: 'EXCLUDE']])
         }
         success {
             echo "Build #${BUILD_NUMBER} green."
