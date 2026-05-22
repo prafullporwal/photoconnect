@@ -1,0 +1,27 @@
+# Jenkins plugins — installed at image-build time by jenkins-plugin-cli.
+# One plugin per line. No version pin = latest compatible.
+#
+# Why each one is here:
+
+# --- Configuration-as-code core ---
+configuration-as-code      # reads casc.yaml on boot
+job-dsl                    # lets casc.yaml declare jobs via the Job DSL
+
+# --- Pipeline (declarative + scripted) ---
+workflow-aggregator        # umbrella that pulls in all pipeline pieces
+pipeline-stage-view        # the per-stage timeline on the build page
+
+# --- SCM ---
+git                        # git checkout step
+
+# --- Docker-based build agents ---
+docker-workflow            # provides `agent { docker { image '...' } }`
+
+# --- Build reports ---
+junit                      # parses surefire/failsafe XML, shows test results
+jacoco                     # parses target/site/jacoco/jacoco.xml, shows coverage
+
+# --- UX niceties ---
+timestamper                # prefixes every log line with a timestamp
+ws-cleanup                 # `cleanWs()` step to wipe the workspace post-build
+blueocean                  # nicer pipeline UI at /blue (optional but pleasant)

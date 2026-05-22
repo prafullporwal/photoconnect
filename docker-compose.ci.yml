@@ -1,0 +1,56 @@
+# =============================================================================
+# PhotoConnect — local CI stack (Jenkins)
+# =============================================================================
+# Kept SEPARATE from docker-compose.yml on purpose. CI is a developer-time
+# concern; you don't need Jenkins running while you write code. Two compose
+# files = two lifecycles.
+#
+# Usage (run from repo root):
+#   docker compose -f docker-compose.ci.yml up -d     # start Jenkins
+#   docker compose -f docker-compose.ci.yml logs -f   # tail logs (watch boot)
+#   docker compose -f docker-compose.ci.yml down      # stop (volume preserved)
+#
+# Jenkins UI:   http://localhost:8090
+# Login:        admin / admin     (defined in ci/jenkins/casc.yaml — change it
+#                                  before exposing this beyond localhost.)
+# =============================================================================
+
+services:
+  jenkins:
+    build:
+      context: ./ci/jenkins
+      dockerfile: Dockerfile
+    image: photoconnect/jenkins:local
+    container_name: photoconnect-jenkins
+    restart: unless-stopped
+    ports:
+      # Host 8090 → container 8080 (Jenkins's default HTTP port).
+      # We re-map because 8080 is also the api-gateway port in the main stack.
+      - "8090:8080"
+    environment:
+      # 1. Skip the first-boot setup wizard — we configure via JCasC instead.
+      # 2. Allow git checkouts from local file:// URLs (used by our multibranch
+      #    job which clones the bind-mounted repo at /workspace/photoconnect).
+      JAVA_OPTS: >-
+        -Djenkins.install.runSetupWizard=false
+        -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true
+      # JCasC reads its config from this path. The Dockerfile copies casc.yaml
+      # to /usr/share/jenkins/ref/ at image build time.
+      CASC_JENKINS_CONFIG: /usr/share/jenkins/ref/casc.yaml
+    volumes:
+      # Jenkins state (jobs, builds, plugin data) — survives container restarts.
+      - jenkins-home:/var/jenkins_home
+      # Docker socket: lets Jenkins spawn SIBLING containers on the host's
+      # Docker daemon. Required for `agent { docker { image '...' } }` in the
+      # Jenkinsfile, and for Testcontainers (which also needs Docker access).
+      # On Windows + Docker Desktop, this path is forwarded automatically to
+      # Linux containers — no changes needed.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the repo READ-ONLY so the multibranch job can clone via
+      # file:///workspace/photoconnect. Read-only is important: Jenkins must
+      # never write back into your working tree.
+      - ./:/workspace/photoconnect:ro
+
+volumes:
+  jenkins-home:
+    name: photoconnect-jenkins-home

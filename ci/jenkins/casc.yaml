@@ -1,0 +1,77 @@
+# =============================================================================
+# Jenkins Configuration as Code (JCasC)
+# =============================================================================
+# This file is the single source of truth for Jenkins's configuration. Anything
+# you'd otherwise set via "Manage Jenkins" in the UI goes here instead.
+#
+# How it works:
+#   1. Container boots.
+#   2. configuration-as-code plugin reads $CASC_JENKINS_CONFIG (this file).
+#   3. Jenkins applies every section: security realm, jobs, system settings.
+#   4. If you click-change something in the UI, it gets OVERWRITTEN on next
+#      boot. So always edit here, then `docker compose ... up -d --build`.
+#
+# Reference: https://github.com/jenkinsci/configuration-as-code-plugin
+# =============================================================================
+
+jenkins:
+  systemMessage: "PhotoConnect local CI — configured via JCasC. Edit ci/jenkins/casc.yaml to change."
+  numExecutors: 2
+
+  # --- Who can log in --------------------------------------------------------
+  # "local" = a Jenkins-managed user database (no LDAP/OAuth). One admin.
+  # JCasC accepts plaintext here; Jenkins hashes it on first boot.
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: admin   # CHANGE before exposing beyond localhost
+
+  # --- What logged-in users can do ------------------------------------------
+  # "loggedInUsersCanDoAnything" = anyone authenticated has full rights.
+  # Anonymous read disabled because there's nothing public to see.
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+# --- Job DSL security --------------------------------------------------------
+# Job DSL is what lets us declare jobs from this YAML (see `jobs:` below). By
+# default it runs in a sandbox that blocks many APIs. For a local single-admin
+# Jenkins we turn the sandbox off so the DSL can do its work.
+security:
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: false
+
+# --- System URL --------------------------------------------------------------
+unclassified:
+  location:
+    url: "http://localhost:8090/"
+
+# --- Jobs --------------------------------------------------------------------
+# Each entry under `jobs:` is a Job DSL script. We declare ONE multibranch
+# pipeline job that scans this repo (mounted read-only at
+# /workspace/photoconnect by docker-compose.ci.yml) and builds every branch
+# containing a Jenkinsfile.
+jobs:
+  - script: >
+      multibranchPipelineJob('photoconnect') {
+        displayName('PhotoConnect')
+        description('Builds & tests every branch with a Jenkinsfile. Source: local bind-mount of the repo. Swap to a GitHub source once we push.')
+        branchSources {
+          git {
+            id('photoconnect-local')
+            remote('file:///workspace/photoconnect')
+          }
+        }
+        orphanedItemStrategy {
+          discardOldItems {
+            numToKeep(10)
+          }
+        }
+        triggers {
+          periodicFolderTrigger {
+            interval('1m')
+          }
+        }
+      }
