@@ -43,35 +43,68 @@ security:
   globalJobDslSecurityConfiguration:
     useScriptSecurity: false
 
+# --- Credentials -------------------------------------------------------------
+# GitHub Personal Access Token, injected from env vars (set in .env at the
+# repo root — gitignored, never commit). Without this, Jenkins hits
+# api.github.com anonymously (60 req/hour per IP) and branch indexing stalls
+# for 4-5 minutes between calls. With it, the quota is 5000 req/hour.
+#
+# To generate the PAT:
+#   GitHub → Settings → Developer settings → Personal access tokens (classic)
+#   Scopes: repo, read:org
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: github-pat
+              username: ${GITHUB_USERNAME}
+              password: ${GITHUB_PAT}
+              description: "GitHub PAT — used by github-branch-source"
+
 # --- System URL --------------------------------------------------------------
 unclassified:
   location:
     url: "http://localhost:8090/"
 
+  # --- GitHub API endpoint ---------------------------------------------------
+  # Register github.com as a known endpoint with our PAT credential so every
+  # API call (branch indexing, PR discovery) authenticates automatically.
+  gitHubPluginConfig:
+    configs:
+      - name: "GitHub"
+        apiUrl: "https://api.github.com"
+        credentialsId: github-pat
+        manageHooks: false   # don't let Jenkins create/delete webhooks on the repo
+
+  # ThrottleOnOver = only sleep when actually about to exceed the hourly
+  # quota. The default (ThrottleForNormalize) deliberately spaces requests
+  # out to spread load across the hour — that's what causes the multi-minute
+  # "Jenkins is attempting to evenly distribute" sleeps in the indexing log.
+  gitHubConfiguration:
+    apiRateLimitChecker: ThrottleOnOver
+
 # --- Jobs --------------------------------------------------------------------
-# Each entry under `jobs:` is a Job DSL script. We declare ONE multibranch
-# pipeline job that scans this repo (mounted read-only at
-# /workspace/photoconnect by docker-compose.ci.yml) and builds every branch
-# containing a Jenkinsfile.
-jobs:
-  - script: >
-      multibranchPipelineJob('photoconnect') {
-        displayName('PhotoConnect')
-        description('Builds & tests every branch with a Jenkinsfile. Source: local bind-mount of the repo. Swap to a GitHub source once we push.')
-        branchSources {
-          git {
-            id('photoconnect-local')
-            remote('file:///workspace/photoconnect')
-          }
-        }
-        orphanedItemStrategy {
-          discardOldItems {
-            numToKeep(10)
-          }
-        }
-        triggers {
-          periodicFolderTrigger {
-            interval('1m')
-          }
-        }
-      }
+# Job management moved to the Jenkins UI ("New Item"). The block below is kept
+# as a reference for what a JCasC-defined multibranch job looks like. To re-
+# enable JCasC-managed jobs, uncomment and restart with `up -d --build`.
+#
+# jobs:
+#   - script: >
+#       multibranchPipelineJob('photoconnect') {
+#         displayName('PhotoConnect')
+#         description('Builds & tests every branch with a Jenkinsfile.')
+#         branchSources {
+#           git {
+#             id('photoconnect-local')
+#             remote('file:///workspace/photoconnect')
+#           }
+#         }
+#         orphanedItemStrategy {
+#           discardOldItems { numToKeep(10) }
+#         }
+#         triggers {
+#           periodicFolderTrigger { interval('1m') }
+#         }
+#       }
