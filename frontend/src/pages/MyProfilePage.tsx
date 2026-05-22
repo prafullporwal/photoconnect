@@ -34,6 +34,10 @@ export function MyProfilePage() {
 // Photographer editor
 // ─────────────────────────────────────────────────────────────────────────────
 
+const SPECIALTIES = [
+  'Reels', 'Wedding', 'Pre-Wedding', 'Maternity', 'Birthday', 'Corporate',
+] as const;
+
 const photographerSchema = z.object({
   displayName:       z.string().min(1, 'Display name is required').max(100),
   bio:               z.string().max(2000).optional(),
@@ -43,15 +47,10 @@ const photographerSchema = z.object({
   // the input layer via `valueAsNumber: true` on the register() calls below.
   yearsOfExperience: z.number().int().min(0).max(60),
   pricePerHour:      z.number().min(0),
-  specialtiesCsv:    z.string(), // comma-separated; split/joined on submit
+  specialties:       z.array(z.string()),
   available:         z.boolean().optional(),
 });
 type PhotographerValues = z.infer<typeof photographerSchema>;
-
-const csvToList = (csv: string): string[] =>
-  csv.split(',').map(s => s.trim()).filter(Boolean);
-
-const listToCsv = (list: string[]): string => list.join(', ');
 
 function PhotographerEditor() {
   const qc = useQueryClient();
@@ -86,7 +85,7 @@ function PhotographerEditor() {
       location: '',
       yearsOfExperience: 0,
       pricePerHour: 0,
-      specialtiesCsv: '',
+      specialties: [],
       available: true,
     },
   });
@@ -100,7 +99,7 @@ function PhotographerEditor() {
         location: data.location,
         yearsOfExperience: data.yearsOfExperience,
         pricePerHour: data.pricePerHour,
-        specialtiesCsv: listToCsv(data.specialties),
+        specialties: data.specialties,
         available: data.available,
       });
     }
@@ -115,7 +114,7 @@ function PhotographerEditor() {
           location: values.location,
           yearsOfExperience: values.yearsOfExperience,
           pricePerHour: values.pricePerHour,
-          specialties: csvToList(values.specialtiesCsv),
+          specialties: values.specialties,
         };
         const res = await api.post<PhotographerProfile>('/photographers/me', body);
         return res.data;
@@ -126,7 +125,7 @@ function PhotographerEditor() {
         location: values.location,
         yearsOfExperience: values.yearsOfExperience,
         pricePerHour: values.pricePerHour,
-        specialties: csvToList(values.specialtiesCsv),
+        specialties: values.specialties,
         available: values.available ?? true,
       };
       const res = await api.put<PhotographerProfile>('/photographers/me', body);
@@ -193,13 +192,22 @@ function PhotographerEditor() {
           <Input type="number" step="0.01" min={0} {...form.register('pricePerHour', { valueAsNumber: true })} />
         </Field>
 
-        <Field
-          label="Specialties"
-          error={form.formState.errors.specialtiesCsv?.message}
-          hint="Comma-separated, e.g. wedding, portrait, commercial."
-        >
-          <Input {...form.register('specialtiesCsv')} />
-        </Field>
+        <fieldset>
+          <legend className="mb-2 block text-sm font-medium text-gray-700">Specialties</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {SPECIALTIES.map(s => (
+              <label key={s} className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  value={s}
+                  {...form.register('specialties')}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                {s}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         {mode === 'edit' && (
           <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -334,24 +342,26 @@ function PhotographerSummaryView({
       </div>
 
       {/* ── Portfolio section ──────────────────────────────────────────────── */}
-      <section className="mt-8">
-        <div className="mb-4 flex items-baseline justify-between">
+      <section className="mt-10">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">My portfolio</h2>
-            <p className="text-sm text-gray-600">
-              This is what customers see on your profile page.
+            <h2 className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-2xl font-bold tracking-tight text-transparent">
+              My portfolio
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              This is exactly what customers see on your public profile.
             </p>
           </div>
           <Link
             to="/me/portfolio"
-            className="text-sm font-medium text-indigo-600 hover:underline"
+            className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900"
           >
             Manage portfolio →
           </Link>
-        </div>
+        </header>
 
         {portfolioLoading ? (
-          <p className="text-sm text-gray-500">Loading portfolio…</p>
+          <PortfolioSkeleton />
         ) : (
           <PortfolioGallery
             items={portfolio ?? []}
@@ -360,6 +370,17 @@ function PhotographerSummaryView({
         )}
       </section>
     </div>
+  );
+}
+
+function PortfolioSkeleton() {
+  const aspects = ['aspect-[4/3]', 'aspect-[9/16]', 'aspect-[4/3]', 'aspect-[4/3]', 'aspect-[9/16]', 'aspect-[4/3]'];
+  return (
+    <ul className="columns-1 gap-3 sm:columns-2 lg:columns-3">
+      {aspects.map((a, i) => (
+        <li key={i} className={`mb-4 break-inside-avoid animate-pulse rounded-2xl bg-slate-200/70 ring-1 ring-slate-200/80 ${a}`} />
+      ))}
+    </ul>
   );
 }
 

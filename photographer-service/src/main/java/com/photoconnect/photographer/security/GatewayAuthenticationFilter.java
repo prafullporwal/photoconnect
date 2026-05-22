@@ -63,6 +63,15 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
 
+        // If an earlier filter (e.g. ServiceTokenAuthenticationFilter) already
+        // authenticated this request, don't overwrite the context. A service-to-
+        // service caller might forward stray gateway headers; trusting them
+        // would let a service silently impersonate a user.
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String userIdHeader = request.getHeader(HEADER_USER_ID);
         String roleHeader   = request.getHeader(HEADER_USER_ROLE);
 

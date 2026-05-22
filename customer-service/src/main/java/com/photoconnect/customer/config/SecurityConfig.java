@@ -1,6 +1,7 @@
 package com.photoconnect.customer.config;
 
 import com.photoconnect.customer.security.GatewayAuthenticationFilter;
+import com.photoconnect.customer.security.ServiceTokenAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -11,11 +12,22 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Stateless, header-based security — identical setup to photographer-service.
+ * Stateless, header-based security with a second path for service-to-service
+ * traffic. Mirrors photographer-service:
  *
- * <p>Unlike photographer-service, this service has NO public endpoints:
- * customer profiles and inquiries are private to the participants. Every
- * non-actuator/non-swagger path requires authentication.</p>
+ * <ol>
+ *   <li><b>User requests via the gateway.</b> Identity headers
+ *       ({@code X-User-Id}, {@code X-User-Role}) are read by
+ *       {@link GatewayAuthenticationFilter}.</li>
+ *   <li><b>Service-to-service requests via Eureka.</b> A Bearer service-JWT is
+ *       verified by {@link ServiceTokenAuthenticationFilter}, installing a
+ *       {@code ROLE_SERVICE} + {@code SCOPE_*} authentication.</li>
+ * </ol>
+ *
+ * <p>The service-token filter runs FIRST. If it populates the context the
+ * gateway-headers filter sees a non-null Authentication and bails. If no Bearer
+ * header is present the service-token filter is a no-op and the gateway-headers
+ * filter handles the user case.</p>
  */
 @Configuration
 @EnableMethodSecurity
@@ -23,7 +35,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                    GatewayAuthenticationFilter gatewayFilter)
+                                                    GatewayAuthenticationFilter gatewayFilter,
+                                                    ServiceTokenAuthenticationFilter serviceTokenFilter)
             throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -37,7 +50,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(gatewayFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(serviceTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(gatewayFilter, ServiceTokenAuthenticationFilter.class)
                 .build();
     }
 }

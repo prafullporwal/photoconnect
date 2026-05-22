@@ -1,0 +1,30 @@
+# =============================================================================
+# Test profile — replaces real external dependencies with in-memory stubs so
+# the context loads without MySQL, Eureka, or the Config Server running.
+# =============================================================================
+
+spring:
+  config:
+    import: ""           # skip the configserver import entirely
+  cloud:
+    config:
+      enabled: false     # don't try to fetch from config-service
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # let Hibernate build the schema from entities
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        type:
+          preferred_uuid_jdbc_type: CHAR
+  flyway:
+    enabled: false        # H2 in-memory doesn't run the MySQL Flyway scripts
+
+eureka:
+  client:
+    enabled: false        # no Eureka in unit/smoke tests

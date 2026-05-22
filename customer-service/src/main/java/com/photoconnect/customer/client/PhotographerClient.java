@@ -4,6 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -22,9 +23,10 @@ import java.util.UUID;
  *       the JSON response into the return type.</li>
  * </ol>
  *
- * <p>The endpoint we hit is {@code GET /api/v1/photographers/{id}} which is
- * a <em>public</em> path on photographer-service — no JWT needed for this
- * internal call. (Cross-service auth is a Phase 2 topic.)</p>
+ * <p>The endpoint we hit is {@code GET /internal/v1/photographers/{id}} —
+ * photographer-service's service-to-service path. Every outbound request gets
+ * a {@code Bearer} JWT stamped on it by {@link ServiceTokenFeignInterceptor},
+ * minted (and cached) by {@link ServiceTokenClient}.</p>
  *
  * <p>If photographer-service is down or returns 4xx/5xx, Feign throws a
  * {@code FeignException} subclass which {@link
@@ -39,6 +41,22 @@ public interface PhotographerClient {
      * {@link PhotographerSummary} — Jackson ignores any extra fields in the
      * full response.
      */
-    @GetMapping("/api/v1/photographers/{id}")
+    @GetMapping("/internal/v1/photographers/{id}")
     PhotographerSummary getPhotographer(@PathVariable("id") UUID id);
+
+    /**
+     * Fetch a photographer's posted available dates. We call this right before
+     * persisting an inquiry to confirm the customer's chosen date is still on
+     * the photographer's calendar. Same service-to-service path convention —
+     * the gateway doesn't expose {@code /internal/**}.
+     */
+    @GetMapping("/internal/v1/photographers/{id}/availability")
+    List<AvailabilitySlotView> getAvailability(@PathVariable("id") UUID id);
+
+    /**
+     * Fetch a single portfolio item as a feed-item shape (id + media + photographer
+     * snippet). Used by customer-service to enrich saved-content favorites.
+     */
+    @GetMapping("/internal/v1/photographers/portfolio/{itemId}")
+    PortfolioItemSummary getPortfolioItem(@PathVariable("itemId") UUID itemId);
 }

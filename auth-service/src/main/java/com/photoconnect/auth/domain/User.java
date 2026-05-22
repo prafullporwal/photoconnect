@@ -29,11 +29,16 @@ public class User extends AuditableEntity {
     @Column(columnDefinition = "UUID", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(nullable = false, length = 255)
+    /** Nullable since V3: an OTP-only account is identified solely by phone. */
+    @Column(length = 255)
     private String email;
 
-    /** BCrypt hash; NEVER the plaintext password. */
-    @Column(name = "password_hash", nullable = false, length = 255)
+    /** E.164 phone (e.g. {@code +919876543210}); nullable for password-only accounts. */
+    @Column(length = 20)
+    private String phone;
+
+    /** BCrypt hash; null for OTP-only accounts. NEVER the plaintext password. */
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)

@@ -72,6 +72,7 @@
         <module>auth-service</module>
         <module>photographer-service</module>
         <module>customer-service</module>
+        <module>reviews-service</module>
     </modules>
 
     <dependencyManagement>

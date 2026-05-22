@@ -44,7 +44,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/login",
-                                "/api/v1/auth/refresh").permitAll()
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/service-token",
+                                "/api/v1/auth/otp/send",
+                                "/api/v1/auth/otp/verify").permitAll()
                         // Observability + docs
                         .requestMatchers(
                                 "/actuator/health/**",

@@ -11,6 +11,7 @@ import com.photoconnect.photographer.exception.ProfileNotFoundException;
 import com.photoconnect.photographer.security.GatewayAuthenticationFilter;
 import com.photoconnect.photographer.security.GatewayPrincipal;
 import com.photoconnect.photographer.security.CorrelationIdServletFilter;
+import com.photoconnect.photographer.security.ServiceTokenAuthenticationFilter;
 import com.photoconnect.photographer.service.PhotographerService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -71,7 +72,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class},
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
-                classes = {GatewayAuthenticationFilter.class, CorrelationIdServletFilter.class}))
+                classes = {GatewayAuthenticationFilter.class,
+                           CorrelationIdServletFilter.class,
+                           ServiceTokenAuthenticationFilter.class}))
 @Import({GlobalExceptionHandler.class, PhotographerControllerTest.MvcConfig.class})
 class PhotographerControllerTest {
 

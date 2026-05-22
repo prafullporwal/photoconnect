@@ -2,20 +2,6 @@ import { useMemo, useState } from 'react';
 import type { MediaKind, PortfolioItem } from '../lib/types';
 import { MediaLightbox } from './MediaLightbox';
 
-/**
- * Customer-facing gallery — renders a photographer's portfolio with optional
- * filtering by category and media kind.
- *
- * <h2>Tile vs lightbox</h2>
- * <p>Tiles are uniform 4:3 (or 9:16 for reels) and cropped with
- * {@code object-cover} so the grid looks tidy. <em>Clicking</em> a tile opens
- * a {@link MediaLightbox} that shows the asset at its <strong>natural aspect
- * ratio</strong> with full video controls — that's where the customer
- * actually watches the reel or zooms into a photo.</p>
- *
- * <p>Filter chips are derived from the items themselves so the photographer's
- * own vocabulary drives the list (no hard-coded category enum).</p>
- */
 export function PortfolioGallery({
   items,
   photographerName,
@@ -27,10 +13,10 @@ export function PortfolioGallery({
   const [activeKind, setActiveKind] = useState<MediaKind | 'ALL'>('ALL');
   const [lightboxItem, setLightboxItem] = useState<PortfolioItem | null>(null);
 
-  // Unique categories sorted alphabetically — drives the filter chip row.
-  const categories = useMemo(() => {
-    return Array.from(new Set(items.map(i => i.category))).sort();
-  }, [items]);
+  const categories = useMemo(
+    () => Array.from(new Set(items.map(i => i.category))).sort(),
+    [items],
+  );
 
   const filtered = items.filter(
     i =>
@@ -40,68 +26,67 @@ export function PortfolioGallery({
 
   if (items.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
-        {photographerName} hasn't uploaded any samples yet.
-      </p>
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-12 text-center text-slate-500">
+        <p className="text-base font-medium text-slate-700">No portfolio items yet</p>
+        <p className="mt-1 text-sm">{photographerName} hasn't uploaded any samples.</p>
+      </div>
     );
   }
 
   return (
     <div>
-      {/* Filter row */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-        <span className="font-medium text-gray-600">Filter:</span>
+      {/* ── Sticky filter bar ─────────────────────────────────────────────── */}
+      <div className="sticky top-14 z-10 -mx-4 mb-6 border-b border-slate-200/70 bg-white/70 px-4 py-3 backdrop-blur-lg supports-[backdrop-filter]:bg-white/55">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Media-type chips */}
+          <FilterChip active={activeKind === 'ALL'}   onClick={() => setActiveKind('ALL')}   label="All"    />
+          <FilterChip active={activeKind === 'IMAGE'} onClick={() => setActiveKind('IMAGE')} label="Photos" />
+          <FilterChip active={activeKind === 'VIDEO'} onClick={() => setActiveKind('VIDEO')} label="Videos" />
+          <FilterChip active={activeKind === 'REEL'}  onClick={() => setActiveKind('REEL')}  label="Reels"  />
 
-        <FilterPill
-          active={activeKind === 'ALL'}
-          onClick={() => setActiveKind('ALL')}
-          label="All media"
-        />
-        {(['IMAGE', 'VIDEO', 'REEL'] as MediaKind[]).map(k => (
-          <FilterPill
-            key={k}
-            active={activeKind === k}
-            onClick={() => setActiveKind(k)}
-            label={kindLabel(k)}
-          />
-        ))}
-
-        {categories.length > 0 && (
-          <>
-            <span className="ml-2 hidden text-gray-300 sm:inline">·</span>
-            <FilterPill
-              active={activeCategory === null}
-              onClick={() => setActiveCategory(null)}
-              label="All categories"
-            />
-            {categories.map(cat => (
-              <FilterPill
-                key={cat}
-                active={activeCategory === cat}
-                onClick={() => setActiveCategory(cat)}
-                label={cat}
+          {/* Category chips — only shown when there is more than one category */}
+          {categories.length > 1 && (
+            <>
+              <span className="mx-1 text-slate-300" aria-hidden>|</span>
+              <FilterChip
+                active={activeCategory === null}
+                onClick={() => setActiveCategory(null)}
+                label="All categories"
               />
-            ))}
-          </>
-        )}
+              {categories.map(cat => (
+                <FilterChip
+                  key={cat}
+                  active={activeCategory === cat}
+                  onClick={() => setActiveCategory(cat)}
+                  label={cat}
+                />
+              ))}
+            </>
+          )}
+
+          <span className="ml-auto text-xs font-medium text-slate-500">
+            {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+          </span>
+        </div>
       </div>
 
-      {/* Grid */}
+      {/* ── Empty-filter state ────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
-        <p className="text-sm text-gray-500">No items match that filter.</p>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+          No items match that filter.{' '}
+          <button
+            type="button"
+            onClick={() => { setActiveKind('ALL'); setActiveCategory(null); }}
+            className="font-semibold text-indigo-600 hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        /* ── Masonry grid (same columns as Browse) ──────────────────────── */
+        <ul className="columns-1 gap-3 sm:columns-2 lg:columns-3">
           {filtered.map(item => (
-            <li
-              key={item.id}
-              className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-            >
-              <Thumbnail item={item} onOpen={() => setLightboxItem(item)} />
-              <div className="flex items-center justify-between px-3 py-2 text-xs text-gray-500">
-                <span className="font-medium text-gray-700">{kindLabel(item.mediaType)}</span>
-                <span>{item.category}</span>
-              </div>
-            </li>
+            <GalleryTile key={item.id} item={item} onOpen={() => setLightboxItem(item)} />
           ))}
         </ul>
       )}
@@ -113,7 +98,63 @@ export function PortfolioGallery({
   );
 }
 
-function FilterPill({
+// ─────────────────────────────────────────────────────────────────────────────
+// Single masonry tile — mirrors FeedTile in BrowsePage
+// ─────────────────────────────────────────────────────────────────────────────
+
+function GalleryTile({ item, onOpen }: { item: PortfolioItem; onOpen: () => void }) {
+  const isVideo = item.mimeType.startsWith('video/');
+  const aspect = item.mediaType === 'REEL' ? 'aspect-[9/16]' : 'aspect-[4/3]';
+
+  return (
+    <li
+      className={`group relative mb-4 break-inside-avoid overflow-hidden rounded-2xl bg-slate-100 shadow-sm ring-1 ring-slate-200/80 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:ring-indigo-300/60 ${aspect}`}
+    >
+      {/* Full-tile click target for the lightbox */}
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${item.mediaType.toLowerCase()} preview`}
+        className="absolute inset-0 block h-full w-full"
+      >
+        {isVideo ? (
+          <video
+            src={item.publicUrl}
+            muted
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-cover"
+            onMouseEnter={e => e.currentTarget.play().catch(() => undefined)}
+            onMouseLeave={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+          />
+        ) : (
+          <img
+            src={item.publicUrl}
+            alt={`${item.category} sample`}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        )}
+      </button>
+
+      {/* Top-right media-type badge */}
+      <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+        {item.mediaType}
+      </span>
+
+      {/* Bottom gradient overlay — category label */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-3">
+        <p className="text-xs text-white/80">{item.category}</p>
+      </div>
+    </li>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter chip — same style as BrowsePage's FilterChip
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FilterChip({
   active,
   onClick,
   label,
@@ -126,76 +167,13 @@ function FilterPill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
+      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-200 ${
         active
-          ? 'bg-indigo-600 text-white'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ? 'bg-slate-900 text-white shadow-md shadow-slate-900/10'
+          : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-900'
       }`}
     >
       {label}
     </button>
   );
-}
-
-/**
- * Grid thumbnail. Crops to the tile aspect for uniform layout. For videos we
- * intentionally omit the {@code controls} attribute — the in-grid view is a
- * preview, NOT the player. A play-button overlay hints that clicking opens
- * the lightbox for proper playback at natural aspect ratio.
- */
-function Thumbnail({
-  item,
-  onOpen,
-}: {
-  item: PortfolioItem;
-  onOpen: () => void;
-}) {
-  const isVideo = item.mimeType.startsWith('video/');
-  const wrapperClass = item.mediaType === 'REEL' ? 'aspect-[9/16]' : 'aspect-[4/3]';
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`group relative block w-full bg-gray-100 ${wrapperClass}`}
-      aria-label={`Open ${kindLabel(item.mediaType).toLowerCase()} preview`}
-    >
-      {isVideo ? (
-        <video
-          src={item.publicUrl}
-          muted
-          playsInline
-          preload="metadata"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <img
-          src={item.publicUrl}
-          alt={`${item.category} sample`}
-          loading="lazy"
-          className="h-full w-full object-cover"
-        />
-      )}
-
-      {/* Play-button overlay for videos — hints "click to watch in full" */}
-      {isVideo && (
-        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/30">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-black/55 text-white opacity-90 transition group-hover:opacity-100">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-              className="h-6 w-6 translate-x-0.5"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </span>
-        </span>
-      )}
-    </button>
-  );
-}
-
-function kindLabel(k: MediaKind): string {
-  return k === 'REEL' ? 'Reels' : k === 'VIDEO' ? 'Videos' : 'Photos';
 }

@@ -75,7 +75,7 @@ export function Header() {
               <NavLink to="/me/profile" className={navLinkClass}>
                 {({ isActive }) => (
                   <>
-                    My profile
+                    Profile
                     {isActive && <ActiveUnderline />}
                   </>
                 )}
@@ -84,6 +84,14 @@ export function Header() {
                 {({ isActive }) => (
                   <>
                     Portfolio
+                    {isActive && <ActiveUnderline />}
+                  </>
+                )}
+              </NavLink>
+              <NavLink to="/me/availability" className={navLinkClass}>
+                {({ isActive }) => (
+                  <>
+                    Calendar
                     {isActive && <ActiveUnderline />}
                   </>
                 )}
@@ -103,7 +111,15 @@ export function Header() {
               <NavLink to="/me/profile" className={navLinkClass}>
                 {({ isActive }) => (
                   <>
-                    My profile
+                    Profile
+                    {isActive && <ActiveUnderline />}
+                  </>
+                )}
+              </NavLink>
+              <NavLink to="/me/favorites" className={navLinkClass}>
+                {({ isActive }) => (
+                  <>
+                    Saved
                     {isActive && <ActiveUnderline />}
                   </>
                 )}
@@ -111,7 +127,7 @@ export function Header() {
               <NavLink to="/me/inquiries" className={navLinkClass}>
                 {({ isActive }) => (
                   <>
-                    My inquiries
+                    Inquiries
                     {isActive && <ActiveUnderline />}
                   </>
                 )}

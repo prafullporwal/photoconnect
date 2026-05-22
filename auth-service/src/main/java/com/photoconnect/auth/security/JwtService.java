@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
@@ -37,8 +38,10 @@ public class JwtService {
     public static final String CLAIM_ROLE  = "role";
     public static final String CLAIM_EMAIL = "email";
     public static final String CLAIM_TYP   = "typ";
+    public static final String CLAIM_SCOPE = "scope";
     public static final String TYP_ACCESS  = "access";
     public static final String TYP_REFRESH = "refresh";
+    public static final String TYP_SERVICE = "service";
 
     private final JwtProperties properties;
 
@@ -93,6 +96,38 @@ public class JwtService {
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(exp))
                 .claim(CLAIM_TYP, TYP_REFRESH)
+                .signWith(privateKey, Jwts.SIG.RS256)
+                .compact();
+        return new IssuedToken(token, jti, exp);
+    }
+
+    /**
+     * Mint a short-lived service-to-service token.
+     *
+     * <p>Unlike user tokens, the {@code sub} is the calling service's
+     * {@code client_id} (e.g. {@code "customer-service"}), not a user UUID.
+     * There is no role/email claim — internal callers carry a {@code scope}
+     * claim instead, and authorization happens via {@code hasRole('SERVICE')}
+     * on the callee.</p>
+     *
+     * <p>TTL is intentionally short (default 60s). Callers cache and refresh
+     * just before expiry; if a token leaks, the blast radius is one minute.</p>
+     */
+    public IssuedToken generateServiceToken(String clientId, String scope, Duration ttl) {
+        String jti = UUID.randomUUID().toString();
+        Instant now = Instant.now();
+        Instant exp = now.plus(ttl);
+
+        String token = Jwts.builder()
+                .header().add("typ", "JWT").and()
+                .issuer(properties.issuer())
+                .audience().add(properties.audience()).and()
+                .subject(clientId)
+                .id(jti)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(exp))
+                .claim(CLAIM_TYP, TYP_SERVICE)
+                .claim(CLAIM_SCOPE, scope)
                 .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
         return new IssuedToken(token, jti, exp);

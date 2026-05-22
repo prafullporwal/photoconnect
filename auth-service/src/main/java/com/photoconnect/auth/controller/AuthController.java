@@ -1,17 +1,22 @@
 package com.photoconnect.auth.controller;
 
 import com.photoconnect.auth.domain.User;
+import com.photoconnect.auth.config.OtpProperties;
 import com.photoconnect.auth.dto.AuthResponse;
 import com.photoconnect.auth.dto.LoginRequest;
 import com.photoconnect.auth.dto.RefreshRequest;
 import com.photoconnect.auth.dto.RegisterRequest;
+import com.photoconnect.auth.dto.SendOtpRequest;
+import com.photoconnect.auth.dto.SendOtpResponse;
 import com.photoconnect.auth.dto.UserDto;
+import com.photoconnect.auth.dto.VerifyOtpRequest;
 import com.photoconnect.auth.exception.InvalidTokenException;
 import com.photoconnect.auth.mapper.UserMapper;
 import com.photoconnect.auth.repository.UserRepository;
 import com.photoconnect.auth.security.JwtService;
 import com.photoconnect.auth.security.UserPrincipal;
 import com.photoconnect.auth.service.AuthService;
+import com.photoconnect.auth.service.OtpService;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -39,6 +44,8 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final OtpService otpService;
+    private final OtpProperties otpProperties;
 
     @Operation(summary = "Register a new photographer or customer")
     @ApiResponses({
@@ -89,6 +96,33 @@ public class AuthController {
         Claims claims = jwtService.parseAndVerify(header.substring("Bearer ".length())).getPayload();
         Instant expiresAt = claims.getExpiration().toInstant();
         authService.logout(principal.userId(), principal.jti(), expiresAt);
+    }
+
+    @Operation(summary = "Send a one-time code to an Indian mobile (E.164 +91...)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Code dispatched (dev-mode returns it)"),
+            @ApiResponse(responseCode = "400", description = "Invalid phone format"),
+            @ApiResponse(responseCode = "429", description = "Cooldown active; try again later")
+    })
+    @PostMapping("/otp/send")
+    public SendOtpResponse sendOtp(@Valid @RequestBody SendOtpRequest body) {
+        OtpService.Issued issued = otpService.sendOtp(body.phone());
+        // Dev-mode echoes the code so the developer can paste it into verify.
+        // In any non-dev profile we strip the code from the response.
+        String devCode = otpProperties.devMode() ? issued.code() : null;
+        return new SendOtpResponse(body.phone(), issued.expiresAt(), devCode);
+    }
+
+    @Operation(summary = "Verify an OTP and obtain access+refresh tokens (creates user on first verify)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Verified; tokens returned"),
+            @ApiResponse(responseCode = "400", description = "Validation failure"),
+            @ApiResponse(responseCode = "401", description = "Code wrong, expired, or out of attempts")
+    })
+    @PostMapping("/otp/verify")
+    public AuthResponse verifyOtp(@Valid @RequestBody VerifyOtpRequest body) {
+        otpService.verify(body.phone(), body.code());
+        return authService.registerOrLoginViaOtp(body.phone(), body.email(), body.role());
     }
 
     @Operation(

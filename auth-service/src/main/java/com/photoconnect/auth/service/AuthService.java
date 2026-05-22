@@ -63,10 +63,41 @@ public class AuthService {
         if (!user.isEnabled()) {
             throw new InvalidCredentialsException();
         }
+        // OTP-only accounts have no password hash — fail fast with the same
+        // generic error so the response doesn't reveal account-type info.
+        if (user.getPasswordHash() == null) {
+            throw new InvalidCredentialsException();
+        }
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
         }
         log.info("Login success user id={} email={}", user.getId(), user.getEmail());
+        return issueTokens(user);
+    }
+
+    /**
+     * OTP-verified path. Either logs the existing phone-holder in, or creates
+     * a new account on the fly. Idempotent for the existing-user case.
+     *
+     * <p>Caller (controller) is responsible for first invoking
+     * {@link OtpService#verify} — this method assumes the phone is verified.</p>
+     */
+    @Transactional
+    public AuthResponse registerOrLoginViaOtp(String phone, String email, com.photoconnect.auth.domain.Role role) {
+        User user = userRepository.findByPhoneAndDeletedAtIsNull(phone).orElse(null);
+        if (user == null) {
+            User.UserBuilder builder = User.builder()
+                    .phone(phone)
+                    .role(role)
+                    .enabled(true);
+            if (email != null && !email.isBlank()) {
+                builder.email(email.toLowerCase());
+            }
+            user = userRepository.save(builder.build());
+            log.info("Registered OTP user id={} phone={} role={}", user.getId(), phone, role);
+        } else {
+            log.info("OTP login user id={} phone={}", user.getId(), phone);
+        }
         return issueTokens(user);
     }
 

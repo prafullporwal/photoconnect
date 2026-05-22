@@ -25,7 +25,7 @@ param(
     [ValidateSet(
         'help','up','down','down-clean','restart','logs','ps','build','test',
         'discovery-run','config-run','gateway-run','auth-run','photographer-run','customer-run',
-        'frontend-run','auth-keys',
+        'reviews-run','frontend-run','auth-keys',
         'up-all','down-all','status'
     )]
     [string]$Command = 'help'
@@ -203,6 +203,7 @@ switch ($Command) {
         Write-Host "  .\pc.ps1 auth-run         auth-service             :8081"
         Write-Host "  .\pc.ps1 photographer-run photographer-service     :8082"
         Write-Host "  .\pc.ps1 customer-run     customer-service         :8083"
+        Write-Host "  .\pc.ps1 reviews-run      reviews-service          :8084"
         Write-Host "  .\pc.ps1 frontend-run     Vite dev server          :5173"
         Write-Host ""
         Write-Host "  Utility"
@@ -236,8 +237,15 @@ switch ($Command) {
         mvn -pl api-gateway spring-boot:run
     }
     'auth-run'         { mvn -pl auth-service spring-boot:run }
-    'photographer-run' { mvn -pl photographer-service spring-boot:run }
-    'customer-run'     { mvn -pl customer-service spring-boot:run }
+    'photographer-run' {
+        $env:AUTH_PUBLIC_KEY_PATH = Join-Path $PSScriptRoot 'auth-service\keys\public_key.pem'
+        mvn -pl photographer-service spring-boot:run
+    }
+    'customer-run'     {
+        $env:AUTH_PUBLIC_KEY_PATH = Join-Path $PSScriptRoot 'auth-service\keys\public_key.pem'
+        mvn -pl customer-service spring-boot:run
+    }
+    'reviews-run'      { mvn -pl reviews-service spring-boot:run }
     'frontend-run'     {
         Push-Location (Join-Path $PSScriptRoot 'frontend')
         try {
@@ -275,8 +283,13 @@ switch ($Command) {
 
         Write-Banner 'Step 3/4 - Business services + API gateway'
         Start-ServiceWindow -Title 'auth-service :8081'         -Module 'auth-service'
-        Start-ServiceWindow -Title 'photographer-service :8082' -Module 'photographer-service'
-        Start-ServiceWindow -Title 'customer-service :8083'     -Module 'customer-service'
+        # photographer-service and customer-service validate inbound service JWTs
+        # using the same RSA public key auth-service signs with.
+        Start-ServiceWindow -Title 'photographer-service :8082' -Module 'photographer-service' `
+                            -ExtraEnv @{ 'AUTH_PUBLIC_KEY_PATH' = $publicKey }
+        Start-ServiceWindow -Title 'customer-service :8083'     -Module 'customer-service' `
+                            -ExtraEnv @{ 'AUTH_PUBLIC_KEY_PATH' = $publicKey }
+        Start-ServiceWindow -Title 'reviews-service :8084'      -Module 'reviews-service'
         # Gateway needs an absolute path to the auth public key - mvn spring-boot:run
         # runs from the module directory so a relative path wouldn't resolve.
         Start-ServiceWindow -Title 'api-gateway :8080' -Module 'api-gateway' `
@@ -285,6 +298,7 @@ switch ($Command) {
         Wait-Url 'http://localhost:8081/actuator/health' -TimeoutSec 150 -Label 'auth-service         :8081' | Out-Null
         Wait-Url 'http://localhost:8082/actuator/health' -TimeoutSec 150 -Label 'photographer-service :8082' | Out-Null
         Wait-Url 'http://localhost:8083/actuator/health' -TimeoutSec 150 -Label 'customer-service     :8083' | Out-Null
+        Wait-Url 'http://localhost:8084/actuator/health' -TimeoutSec 150 -Label 'reviews-service      :8084' | Out-Null
         Wait-Url 'http://localhost:8080/actuator/health' -TimeoutSec 150 -Label 'api-gateway          :8080' | Out-Null
 
         Write-Banner 'Step 4/4 - Frontend (Vite)'
@@ -305,6 +319,7 @@ switch ($Command) {
         Write-Host "  auth-service         http://localhost:8081"
         Write-Host "  photographer-service http://localhost:8082"
         Write-Host "  customer-service     http://localhost:8083"
+        Write-Host "  reviews-service      http://localhost:8084"
         Write-Host "  MinIO console        http://localhost:9001  (minioadmin / minioadmin)"
         Write-Host "  Zipkin tracing       http://localhost:9411"
         Write-Host ""
@@ -313,7 +328,7 @@ switch ($Command) {
 
     'down-all' {
         Write-Banner 'Stopping all Java services'
-        foreach ($port in 8080, 8081, 8082, 8083, 8761, 8888, 5173) {
+        foreach ($port in 8080, 8081, 8082, 8083, 8084, 8761, 8888, 5173) {
             Stop-ProcessOnPort -Port $port
         }
         if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -334,6 +349,7 @@ switch ($Command) {
             @{ Port=8081; Label='auth-service' },
             @{ Port=8082; Label='photographer-service' },
             @{ Port=8083; Label='customer-service' },
+            @{ Port=8084; Label='reviews-service' },
             @{ Port=5173; Label='Frontend (Vite)' }
         )
         foreach ($r in $rows) {

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../lib/api';
 import type {
+  AvailabilitySlot,
   CreateInquiryRequest,
   Inquiry,
   PhotographerProfile,
@@ -54,6 +55,23 @@ export function NewInquiryPage() {
       (await api.get<PhotographerProfile>(`/photographers/${photographerId}`)).data,
     enabled: Boolean(photographerId),
   });
+
+  // Photographer's posted availability — empty list = "open to any date."
+  // We hit the same public endpoint the backend uses for its pre-inquiry check,
+  // so the date picker and the server stay in sync.
+  const { data: availability } = useQuery({
+    queryKey: ['availability', photographerId],
+    queryFn: async () =>
+      (
+        await api.get<AvailabilitySlot[]>(
+          `/photographers/${photographerId}/availability`,
+        )
+      ).data,
+    enabled: Boolean(photographerId),
+  });
+
+  const availableDates = availability?.map(s => s.availableDate) ?? [];
+  const hasPostedCalendar = availableDates.length > 0;
 
   const form = useForm<InquiryValues>({
     resolver: zodResolver(schema),
@@ -123,8 +141,35 @@ export function NewInquiryPage() {
         className="mt-6 space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Event date" error={form.formState.errors.eventDate?.message}>
-            <Input type="date" {...form.register('eventDate')} />
+          <Field
+            label="Event date"
+            error={form.formState.errors.eventDate?.message}
+            hint={
+              hasPostedCalendar
+                ? `${availableDates.length} dates available — pick one below.`
+                : "This photographer hasn't posted specific dates — any date works."
+            }
+          >
+            {hasPostedCalendar ? (
+              <select
+                {...form.register('eventDate')}
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">Select a date…</option>
+                {availableDates.map(d => (
+                  <option key={d} value={d}>
+                    {new Date(`${d}T00:00:00`).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input type="date" {...form.register('eventDate')} />
+            )}
           </Field>
           <Field label="Event type" error={form.formState.errors.eventType?.message}>
             <Input placeholder="Wedding, Portrait, Corporate…" {...form.register('eventType')} />

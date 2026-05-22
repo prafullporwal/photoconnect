@@ -1,11 +1,13 @@
 package com.photoconnect.customer.service;
 
+import com.photoconnect.customer.client.AvailabilitySlotView;
 import com.photoconnect.customer.client.PhotographerClient;
 import com.photoconnect.customer.client.PhotographerSummary;
 import com.photoconnect.customer.domain.Inquiry;
 import com.photoconnect.customer.domain.InquiryStatus;
 import com.photoconnect.customer.dto.CreateInquiryRequest;
 import com.photoconnect.customer.dto.InquiryResponse;
+import com.photoconnect.customer.exception.DateUnavailableException;
 import com.photoconnect.customer.exception.InquiryAccessDeniedException;
 import com.photoconnect.customer.exception.InquiryNotFoundException;
 import com.photoconnect.customer.exception.PhotographerNotFoundException;
@@ -69,6 +71,11 @@ public class InquiryService {
 
         // ── Cross-service call: resolve photographer or fail loudly ───────────
         PhotographerSummary photographer = lookupPhotographer(request.photographerProfileId());
+
+        // ── Cross-service call: confirm the requested date is on the
+        // photographer's posted calendar. Skipped if they have no posted dates
+        // (allowlist is empty → photographer accepts inquiries for any date).
+        verifyDateIsAvailable(photographer.id(), request.eventDate());
 
         Inquiry inquiry = new Inquiry();
         inquiry.setCustomerId(customerId);
@@ -144,6 +151,45 @@ public class InquiryService {
             log.warn("Feign call to photographer-service failed: status={}, message={}",
                     e.status(), e.getMessage());
             throw new PhotographerServiceUnavailableException(e);
+        }
+    }
+
+    /**
+     * Pre-inquiry check: confirm the customer's chosen date is on the
+     * photographer's posted calendar.
+     *
+     * <p>If the photographer hasn't posted any availability we treat that as
+     * "open to any date" — the absence of an allowlist is not the same as
+     * blocking. This lets new photographers receive inquiries before they've
+     * had a chance to set up their calendar. Once they post even one date,
+     * the allowlist activates.</p>
+     *
+     * <p>If photographer-service is unavailable, we fail OPEN rather than
+     * blocking the inquiry — the existence check already confirmed the
+     * photographer exists, and refusing to take any inquiries because the
+     * availability lookup blipped would be worse than letting the
+     * photographer manually decline a date on intake.</p>
+     */
+    private void verifyDateIsAvailable(UUID photographerProfileId,
+                                       java.time.LocalDate requestedDate) {
+        java.util.List<AvailabilitySlotView> calendar;
+        try {
+            calendar = photographerClient.getAvailability(photographerProfileId);
+        } catch (FeignException e) {
+            // Soft-fail: don't block the customer because of a transient
+            // photographer-service issue. Logged for diagnostics.
+            log.warn("Availability check skipped (Feign error): status={}, message={}",
+                    e.status(), e.getMessage());
+            return;
+        }
+        if (calendar.isEmpty()) {
+            // No posted calendar → photographer accepts any date.
+            return;
+        }
+        boolean dateMatches = calendar.stream()
+                .anyMatch(slot -> requestedDate.equals(slot.availableDate()));
+        if (!dateMatches) {
+            throw new DateUnavailableException(requestedDate);
         }
     }
 

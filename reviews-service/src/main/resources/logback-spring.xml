@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    JSON-structured logs (logstash encoder) so CloudWatch / ELK can ingest them
+    later without per-service log-format conversion. MDC is included so
+    correlationId travels with every line emitted during a request.
+-->
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>correlationId</includeMdcKeyName>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <customFields>{"service":"reviews-service"}</customFields>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+    <logger name="com.photoconnect.reviews" level="DEBUG"/>
+    <logger name="org.springframework.cloud.openfeign" level="DEBUG"/>
+</configuration>

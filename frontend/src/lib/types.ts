@@ -166,6 +166,46 @@ export interface UpdateInquiryStatusRequest {
   status: InquiryStatus;
 }
 
+// ── Favorites ────────────────────────────────────────────────────────────────
+
+/**
+ * A saved content item. `item` is null when the portfolio item was deleted
+ * after the customer saved it — render a tombstone in that case.
+ */
+export interface Favorite {
+  id: string;
+  portfolioItemId: string;
+  item: FeedItem | null;
+  createdAt: string;
+}
+
+export interface FavoriteStatus {
+  favorited: boolean;
+}
+
+// ── Availability calendar ────────────────────────────────────────────────────
+
+/**
+ * One day on a photographer's posted availability calendar.
+ *
+ * <p>{@code availableDate} is an ISO-8601 LocalDate string (YYYY-MM-DD);
+ * granularity is intentionally per-day — fine-grained slots are negotiated
+ * inside the inquiry conversation rather than in the calendar.</p>
+ */
+export interface AvailabilitySlot {
+  id: string;
+  photographerProfileId: string;
+  availableDate: string;
+  note: string | null;
+  createdAt: string;
+}
+
+/** Bulk-add payload — the editor sends every newly-toggled date in one call. */
+export interface AddAvailabilityRequest {
+  dates: string[];
+  note?: string;
+}
+
 // ── Error envelope ───────────────────────────────────────────────────────────
 
 /**

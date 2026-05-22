@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { MediaLightbox } from '../components/MediaLightbox';
+import { FavoriteButton } from '../components/FavoriteButton';
 import type { FeedItem, MediaKind } from '../lib/types';
 
 /**
@@ -258,6 +259,13 @@ function FeedTile({ item, onOpen }: { item: FeedItem; onOpen: () => void }) {
       <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
         {item.mediaType}
       </span>
+
+      {/* Top-left heart toggle — only renders for logged-in customers.
+          Lives as a sibling of the media button so its click doesn't bubble
+          into "open lightbox" (FavoriteButton calls stopPropagation). */}
+      <div className="absolute left-2 top-2">
+        <FavoriteButton portfolioItemId={item.id} />
+      </div>
 
       {/* Bottom overlay — clickable Link to the photographer's profile.
           Stop-propagation isn't strictly needed (siblings, not nested) but

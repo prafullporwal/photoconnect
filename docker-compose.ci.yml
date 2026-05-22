@@ -37,6 +37,15 @@ services:
       # JCasC reads its config from this path. The Dockerfile copies casc.yaml
       # to /usr/share/jenkins/ref/ at image build time.
       CASC_JENKINS_CONFIG: /usr/share/jenkins/ref/casc.yaml
+    # Add the jenkins user (uid 1000) to supplementary group 0 (root group)
+    # so it can read/write /var/run/docker.sock, which is owned root:root mode
+    # 660. Without this, `docker` commands inside the controller fail with
+    # "permission denied while trying to connect to the docker API".
+    # On Linux hosts where the docker group has a specific GID, set THAT GID
+    # here instead. On Docker Desktop (Mac/Windows) the socket comes through
+    # as root-owned, so group 0 is the right answer.
+    group_add:
+      - "0"
     volumes:
       # Jenkins state (jobs, builds, plugin data) — survives container restarts.
       - jenkins-home:/var/jenkins_home

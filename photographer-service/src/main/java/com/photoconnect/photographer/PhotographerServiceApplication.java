@@ -1,7 +1,9 @@
 package com.photoconnect.photographer;
 
+import com.photoconnect.photographer.config.ServiceJwtProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * PhotoConnect — Photographer Service entry point.
@@ -21,6 +23,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * auth-service ran into.</p>
  */
 @SpringBootApplication
+@EnableConfigurationProperties(ServiceJwtProperties.class)
 public class PhotographerServiceApplication {
 
     public static void main(String[] args) {

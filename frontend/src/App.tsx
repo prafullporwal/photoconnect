@@ -10,6 +10,8 @@ import { NewInquiryPage } from './pages/NewInquiryPage';
 import { InquiryListPage } from './pages/InquiryListPage';
 import { InquiryDetailPage } from './pages/InquiryDetailPage';
 import { PortfolioPage } from './pages/PortfolioPage';
+import { FavoritesPage } from './pages/FavoritesPage';
+import { MyAvailabilityPage } from './pages/MyAvailabilityPage';
 
 /**
  * Route map for the PhotoConnect SPA.
@@ -70,6 +72,14 @@ export default function App() {
             }
           />
           <Route
+            path="/me/favorites"
+            element={
+              <ProtectedRoute allow={['CUSTOMER']}>
+                <FavoritesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/inquiries/new"
             element={
               <ProtectedRoute allow={['CUSTOMER']}>
@@ -92,6 +102,14 @@ export default function App() {
             element={
               <ProtectedRoute allow={['PHOTOGRAPHER']}>
                 <PortfolioPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/me/availability"
+            element={
+              <ProtectedRoute allow={['PHOTOGRAPHER']}>
+                <MyAvailabilityPage />
               </ProtectedRoute>
             }
           />

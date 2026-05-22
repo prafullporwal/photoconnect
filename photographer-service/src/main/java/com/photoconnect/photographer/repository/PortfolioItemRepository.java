@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PortfolioItemRepository extends JpaRepository<PortfolioItem, UUID> {
@@ -43,4 +44,16 @@ public interface PortfolioItemRepository extends JpaRepository<PortfolioItem, UU
         ORDER BY pi.uploadedAt DESC
         """)
     List<FeedRow> findFeed(Limit limit);
+
+    /** Single-item feed row — used by customer-service to enrich a favorited item. */
+    @Query("""
+        SELECT new com.photoconnect.photographer.repository.FeedRow(
+            pi.id, pi.mediaType, pi.category, pi.mimeType, pi.publicUrl, pi.uploadedAt,
+            pp.id, pp.displayName, pp.location)
+        FROM PortfolioItem pi
+        JOIN com.photoconnect.photographer.domain.PhotographerProfile pp
+          ON pp.id = pi.photographerProfileId
+        WHERE pi.id = :itemId
+        """)
+    Optional<FeedRow> findFeedById(UUID itemId);
 }

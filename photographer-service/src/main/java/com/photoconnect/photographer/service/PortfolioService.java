@@ -130,6 +130,17 @@ public class PortfolioService {
     }
 
     /**
+     * Single portfolio item as a feed row — used by customer-service to enrich
+     * a favorited content item. Returns null-safe: caller handles the 404.
+     */
+    @Transactional(readOnly = true)
+    public FeedItemResponse getAsFeedItem(UUID itemId) {
+        FeedRow row = portfolioRepo.findFeedById(itemId)
+                .orElseThrow(() -> new PortfolioItemNotFoundException(itemId));
+        return toFeedResponse(row);
+    }
+
+    /**
      * Marketplace feed — newest portfolio items across all available photographers.
      *
      * <p>Each item carries an embedded {@code photographer} snippet so the SPA

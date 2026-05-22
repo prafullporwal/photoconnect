@@ -41,6 +41,23 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!--
+            JWT validation for inbound service-to-service tokens.
+            Versions come from the parent <dependencyManagement>.
+        -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+        </dependency>
+
         <!-- ===== Persistence (MySQL this time) ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -116,10 +133,27 @@
             <artifactId>mapstruct</artifactId>
         </dependency>
 
-        <!-- ===== Tests (kept on classpath even though we're not writing tests this step) ===== -->
+        <!-- ===== Tests ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- In-memory database for smoke tests — replaces MySQL so no real DB is needed -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+            mockwebserver — drives ServiceTokenClient against a fake auth-service
+            without needing the full Spring context. Square's mockwebserver lives
+            inside the okhttp3 artifacts.
+        -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <version>4.12.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

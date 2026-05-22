@@ -34,7 +34,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       # Comma-separated list parsed by our init script:
-      POSTGRES_MULTIPLE_DATABASES: auth_db,photographer_db
+      POSTGRES_MULTIPLE_DATABASES: auth_db,photographer_db,reviews_db
     ports:
       - "5432:5432"
     volumes:

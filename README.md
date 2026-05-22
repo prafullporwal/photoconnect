@@ -18,17 +18,17 @@ A microservices marketplace where photographers showcase their work and customer
                               │  • JWT validation          │
                               │  • correlation-id          │
                               │  • CORS                    │
-                              └─────┬──────────┬───────┬───┘
-                                    │          │       │
-                  ┌─────────────────┘          │       └────────────────┐
-                  ▼                            ▼                        ▼
-        ┌──────────────────┐        ┌──────────────────┐      ┌──────────────────┐
-        │  auth-service    │        │ photographer-svc │      │ customer-service │
-        │  (PostgreSQL)    │        │  (PostgreSQL)    │      │    (MySQL)       │
-        │  • register      │        │  • profile       │      │  • profile       │
-        │  • login         │        │  • content meta  │      │  • inquiries     │
-        │  • JWT issuance  │        │  • MinIO/S3      │      │                  │
-        └──────────────────┘        └──────────────────┘      └──────────────────┘
+                              └─┬───────┬───────┬───────┬──┘
+                                │       │       │       │
+              ┌─────────────────┘       │       │       └────────────┐
+              ▼                         ▼       ▼                    ▼
+    ┌──────────────────┐     ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+    │  auth-service    │     │ photographer-svc │  │ customer-service │  │  reviews-service │
+    │  (PostgreSQL)    │     │  (PostgreSQL)    │  │    (MySQL)       │  │   (PostgreSQL)   │
+    │  • register      │     │  • profile       │  │  • profile       │  │  • star ratings  │
+    │  • login         │     │  • content meta  │  │  • inquiries     │  │  • text reviews  │
+    │  • JWT issuance  │     │  • MinIO/S3      │  │  • favorites     │  │  • aggregates    │
+    └──────────────────┘     └──────────────────┘  └──────────────────┘  └──────────────────┘
                   ▲                            ▲                        ▲
                   │                            │                        │
                   └────────────┬───────────────┴────────────┬───────────┘
@@ -58,7 +58,8 @@ PhotoConnect/
 ├── auth-service/                ← Auth + JWT             (port 8081)    Step 4
 ├── photographer-service/        ← Profiles + media       (port 8082)    Step 5
 ├── customer-service/            ← Inquiries              (port 8083)    Step 6
-└── frontend/                    ← React 18 + Vite                       Step 7
+├── reviews-service/             ← Reviews + ratings      (port 8084)    Step 7
+└── frontend/                    ← React 18 + Vite                       Step 8
 ```
 
 ## Prerequisites
@@ -116,6 +117,7 @@ export SPRING_PROFILES_ACTIVE=aws      # for Phase 2 EKS deploys
 | auth-service | 8081 | http://localhost:8081 |
 | photographer-service | 8082 | http://localhost:8082 |
 | customer-service | 8083 | http://localhost:8083 |
+| reviews-service | 8084 | http://localhost:8084 |
 | Frontend (Vite dev) | 5173 | http://localhost:5173 |
 | PostgreSQL | 5432 | jdbc:postgresql://localhost:5432/ |
 | MySQL | 3306 | jdbc:mysql://localhost:3306/customer_db |

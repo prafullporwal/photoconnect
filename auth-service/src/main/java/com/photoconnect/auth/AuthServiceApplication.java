@@ -1,6 +1,8 @@
 package com.photoconnect.auth;
 
 import com.photoconnect.auth.config.JwtProperties;
+import com.photoconnect.auth.config.OtpProperties;
+import com.photoconnect.auth.config.ServiceClientsProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,7 +23,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * JPA machinery.</p>
  */
 @SpringBootApplication
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, ServiceClientsProperties.class, OtpProperties.class})
 public class AuthServiceApplication {
 
     public static void main(String[] args) {

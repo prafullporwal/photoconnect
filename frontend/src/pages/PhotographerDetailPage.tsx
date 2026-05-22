@@ -106,11 +106,7 @@ export function PhotographerDetailPage() {
             </div>
 
             <div className="text-right">
-              <p className="text-3xl font-bold text-slate-900">
-                ${data.pricePerHour.toFixed(2)}
-                <span className="text-base font-medium text-slate-500">/hr</span>
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="text-sm text-slate-500">
                 {data.yearsOfExperience} years experience
               </p>
             </div>
@@ -139,17 +135,19 @@ export function PhotographerDetailPage() {
           )}
 
           {/* CTA row */}
-          <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
             {user?.role === 'CUSTOMER' ? (
-              <Link
-                to={`/inquiries/new?photographerId=${data.id}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg hover:brightness-110"
-              >
-                Send inquiry
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                  <path d="M5 12h14M13 5l7 7-7 7"/>
-                </svg>
-              </Link>
+              <>
+                <Link
+                  to={`/inquiries/new?photographerId=${data.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg hover:brightness-110"
+                >
+                  Send inquiry
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                    <path d="M5 12h14M13 5l7 7-7 7"/>
+                  </svg>
+                </Link>
+              </>
             ) : user?.role === 'PHOTOGRAPHER' ? (
               <p className="text-sm text-slate-500">
                 You're logged in as a photographer — only customers can send inquiries.
