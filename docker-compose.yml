@@ -222,8 +222,9 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: local
-    volumes:
-      - ./config-repo:/app/config-repo:ro
+    # config-repo is baked into the image (see config-service/Dockerfile).
+    # No bind mount: the host Docker daemon can't see paths that live inside
+    # the Jenkins agent's workspace volume — it would create an empty dir.
     ports:
       - "8888:8888"
     healthcheck:
@@ -262,8 +263,9 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       AUTH_PRIVATE_KEY_PATH: /app/keys/private_key.pem
       AUTH_PUBLIC_KEY_PATH: /app/keys/public_key.pem
-    volumes:
-      - ./auth-service/keys:/app/keys:ro
+    # Keys are baked into the image (see auth-service/Dockerfile) — same
+    # DinD bind-mount caveat as config-service. Jenkinsfile mints fresh keys
+    # before `docker compose up --build`, so each deploy gets a new keypair.
     ports:
       - "8081:8081"
     healthcheck:
@@ -297,8 +299,7 @@ services:
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-service:8761/eureka/
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       AUTH_PUBLIC_KEY_PATH: /app/keys/public_key.pem
-    volumes:
-      - ./auth-service/keys:/app/keys:ro
+    # Public key is baked into the gateway image (see api-gateway/Dockerfile).
     ports:
       - "8080:8080"
     healthcheck:
