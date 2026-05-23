@@ -61,6 +61,35 @@ pipeline {
 
     stages {
 
+        // ----- Defensive workspace reset ---------------------------------
+        // The agent runs as root, so Maven creates root-owned files in
+        // target/. The post-block at the bottom of this file resets ownership
+        // to UID 1000 on normal completion — but if a build is killed
+        // (timeout, controller restart, OOM), those root-owned files survive,
+        // and the controller (UID 1000) can't clean them on the next build's
+        // pre-checkout, failing with "Operation not permitted" before any
+        // stage runs.
+        //
+        // This stage can't recover from THAT case — by the time stages run,
+        // the controller's pre-checkout cleanup has already happened or
+        // failed. What it does is (a) make ownership drift visible in the
+        // log so we notice early, and (b) proactively re-reset in case a
+        // prior post-block only ran partially.
+        // -----------------------------------------------------------------
+        stage('Workspace reset') {
+            steps {
+                sh '''
+                    bad=$(find "$WORKSPACE" -not -uid 1000 2>/dev/null | wc -l)
+                    if [ "$bad" -gt 0 ]; then
+                        echo "Found $bad non-UID-1000 files at build start. Sample:"
+                        find "$WORKSPACE" -not -uid 1000 -printf "  %u:%g %p\\n" 2>/dev/null | head -10 || true
+                    fi
+                    chmod -R u+rwX "$WORKSPACE" || echo "WARN: chmod returned $?"
+                    chown -R 1000:1000 "$WORKSPACE" || echo "WARN: chown returned $?"
+                '''
+            }
+        }
+
         stage('Build') {
             steps {
                 echo 'Compiling all modules, skipping tests for speed...'
@@ -161,14 +190,27 @@ Stop:         docker compose -p photoconnect --profile apps down
 
     post {
         always {
+            // ----- Reset ownership for the controller's next-build cleanup ---
             // Maven runs in this agent as root (see args '-u root:root') but the
-            // Jenkins controller runs as jenkins (UID 1000). Without this chown,
-            // the controller can't chmod or delete root-owned files on the next
-            // build's checkout — it fails with "Operation not permitted" and
-            // aborts the whole build before any stage runs. Chowning ensures the
-            // workspace (including the auth-service/keys we deliberately keep
-            // via the EXCLUDE below) is cleanable by UID 1000 next time around.
-            sh 'chown -R 1000:1000 . 2>/dev/null || true'
+            // Jenkins controller runs as jenkins (UID 1000). Without resetting
+            // ownership here, the controller can't chmod or delete root-owned
+            // target/ files on the next build's pre-checkout — it fails with
+            // "Operation not permitted" and aborts the build before any stage
+            // runs.
+            //
+            // Errors are no longer silenced. If chown fails, the next build is
+            // likely to break, so we want a loud breadcrumb in the log. We
+            // still don't FAIL the build on chown errors (some paths can't be
+            // chowned, e.g. files with extended attrs or on weird FS layers).
+            sh '''
+                chmod -R u+rwX "$WORKSPACE" || echo "WARN: chmod returned $?"
+                chown -R 1000:1000 "$WORKSPACE" || echo "WARN: chown returned $?"
+                remaining=$(find "$WORKSPACE" -not -uid 1000 2>/dev/null | wc -l)
+                if [ "$remaining" -gt 0 ]; then
+                    echo "WARN: $remaining files still not UID 1000 after reset; first 20:"
+                    find "$WORKSPACE" -not -uid 1000 -printf "  %u:%g %p\\n" 2>/dev/null | head -20 || true
+                fi
+            '''
 
             // JUnit picks up BOTH unit (surefire) and integration (failsafe) XML.
             // allowEmptyResults so a pure-compile failure doesn't compound by
