@@ -10,7 +10,12 @@
 # =============================================================================
 
 # ---- Stage 1: build -----------------------------------------------------------
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# maven:*-eclipse-temurin-21-alpine bundles Maven 3.9 + Java 21 from the same
+# Temurin distribution. We used to start from eclipse-temurin:21-jdk-alpine and
+# `apk add maven`, but Alpine's `maven` package now pulls in OpenJDK 25 as a
+# transitive dep — a redundant ~150MB second JDK that occasionally fails to
+# extract on disk-pressured builders. Using the upstream Maven image avoids it.
+FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /workspace
 
 # Copy parent POM and this module so Maven can resolve the reactor build.
@@ -19,9 +24,7 @@ WORKDIR /workspace
 COPY pom.xml /workspace/pom.xml
 COPY discovery-service /workspace/discovery-service
 
-# Use the Maven Wrapper if present; otherwise install Maven.
-RUN apk add --no-cache maven && \
-    mvn -B -f /workspace/discovery-service/pom.xml -DskipTests package
+RUN mvn -B -f /workspace/discovery-service/pom.xml -DskipTests package
 
 # ---- Stage 2: runtime ---------------------------------------------------------
 FROM eclipse-temurin:21-jre-alpine

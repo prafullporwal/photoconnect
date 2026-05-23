@@ -10,12 +10,11 @@
 #           photoconnect/auth-service:dev
 # =============================================================================
 
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /workspace
 COPY pom.xml /workspace/pom.xml
 COPY auth-service /workspace/auth-service
-RUN apk add --no-cache maven && \
-    mvn -B -f /workspace/auth-service/pom.xml -DskipTests package
+RUN mvn -B -f /workspace/auth-service/pom.xml -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S -G app app
